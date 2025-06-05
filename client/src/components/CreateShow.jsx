@@ -16,7 +16,8 @@ import {
   Divider,
   Typography,
   Autocomplete,
-  CircularProgress
+  CircularProgress,
+  Chip
 } from '@mui/material';
 import { DateTimePicker } from '@mui/x-date-pickers';
 import { Controller } from 'react-hook-form';
@@ -26,8 +27,7 @@ import dayjs from 'dayjs';
 
 const CreateShow = () => {
   const navigate = useNavigate();
-  const [managers, setManagers] = useState([]);
-  const [performers, setPerformers] = useState([]);
+  const [availableUsers, setAvailableUsers] = useState([]);
   const [loadingUsers, setLoadingUsers] = useState(false);
   const [loadingPlace, setLoadingPlace] = useState(false);
   
@@ -41,6 +41,8 @@ const CreateShow = () => {
   } = useFormValidation(showSchema, {
     venue: {
       name: '',
+      phone: '',
+      mapUrl: '',
       address: {
         street: '',
         city: '',
@@ -54,8 +56,7 @@ const CreateShow = () => {
     },
     dateTime: dayjs(),
     duration: 180,
-    managers: [],
-    additionalPerformers: [],
+    participants: [],
     settings: {
       maxRequestsPerUser: 3,
       allowExplicitSongs: true
@@ -76,6 +77,7 @@ const CreateShow = () => {
         
         // Update form fields with place details
         setValue('venue.name', placeDetails.name);
+        setValue('venue.mapUrl', mapsLink); // Store the original maps URL
         setValue('venue.address.street', placeDetails.address.street);
         setValue('venue.address.city', placeDetails.address.city);
         setValue('venue.address.state', placeDetails.address.state);
@@ -91,7 +93,7 @@ const CreateShow = () => {
     updateVenueDetails();
   }, [mapsLink, setValue]);
 
-  // Fetch available managers and performers
+  // Fetch available users (both managers and performers)
   useEffect(() => {
     const fetchUsers = async () => {
       setLoadingUsers(true);
@@ -100,8 +102,11 @@ const CreateShow = () => {
           axios.get('/api/users/role/manager'),
           axios.get('/api/users/role/performer')
         ]);
-        setManagers(managersRes.data);
-        setPerformers(performersRes.data);
+        
+        // Combine and deduplicate users
+        const allUsers = [...managersRes.data, ...performersRes.data];
+        const uniqueUsers = Array.from(new Map(allUsers.map(user => [user._id, user])).values());
+        setAvailableUsers(uniqueUsers);
       } catch (err) {
         toast.error('Failed to load users');
       }
@@ -115,8 +120,10 @@ const CreateShow = () => {
     try {
       const show = await showsStore.createShow({
         ...data,
-        managers: data.managers.map(m => m._id),
-        additionalPerformers: data.additionalPerformers.map(p => p._id)
+        participants: data.participants.map(p => ({
+          user: p.user._id,
+          role: p.role
+        }))
       });
       if (show) {
         toast.success('Show created successfully!');
@@ -161,6 +168,17 @@ const CreateShow = () => {
             label="Venue Name"
             error={!!errors.venue?.name}
             helperText={errors.venue?.name?.message}
+          />
+        </Grid>
+
+        <Grid item xs={12}>
+          <TextField
+            {...register('venue.phone')}
+            margin="dense"
+            fullWidth
+            label="Venue Phone"
+            error={!!errors.venue?.phone}
+            helperText={errors.venue?.phone?.message}
           />
         </Grid>
 
@@ -222,6 +240,61 @@ const CreateShow = () => {
       <Grid container spacing={2}>
         <Grid item xs={12}>
           <Controller
+            name="participants"
+            control={control}
+            defaultValue={[]}
+            render={({ field }) => (
+              <Autocomplete
+                multiple
+                loading={loadingUsers}
+                options={availableUsers}
+                getOptionLabel={(option) => `${option.profile.name} (${option.role})`}
+                isOptionEqualToValue={(option, value) => option._id === value._id}
+                onChange={(_, newValue) => {
+                  // Convert selected users to participants with roles
+                  const participants = newValue.map(user => ({
+                    user: {
+                      _id: user._id,
+                      profile: {
+                        name: user.profile.name
+                      }
+                    },
+                    role: user.role
+                  }));
+                  field.onChange(participants);
+                }}
+                renderInput={(params) => (
+                  <TextField
+                    {...params}
+                    label="Add Performers/Managers"
+                    error={!!errors.participants}
+                    helperText={errors.participants?.message}
+                    InputProps={{
+                      ...params.InputProps,
+                      endAdornment: (
+                        <>
+                          {loadingUsers ? <CircularProgress color="inherit" size={20} /> : null}
+                          {params.InputProps.endAdornment}
+                        </>
+                      )
+                    }}
+                  />
+                )}
+                renderTags={(tagValue, getTagProps) =>
+                  tagValue.map((option, index) => (
+                    <Chip
+                      label={`${option.user.profile.name} (${option.role})`}
+                      {...getTagProps({ index })}
+                    />
+                  ))
+                }
+              />
+            )}
+          />
+        </Grid>
+
+        <Grid item xs={12}>
+          <Controller
             name="dateTime"
             control={control}
             render={({ field }) => (
@@ -257,76 +330,6 @@ const CreateShow = () => {
             }}
             error={!!errors.duration}
             helperText={errors.duration?.message}
-          />
-        </Grid>
-
-        <Grid item xs={12}>
-          <Controller
-            name="managers"
-            control={control}
-            render={({ field: { onChange, value } }) => (
-              <Autocomplete
-                multiple
-                options={managers}
-                getOptionLabel={(option) => option.profile.name}
-                loading={loadingUsers}
-                value={value}
-                onChange={(_, newValue) => onChange(newValue)}
-                renderInput={(params) => (
-                  <TextField
-                    {...params}
-                    label="Managers"
-                    margin="dense"
-                    error={!!errors.managers}
-                    helperText={errors.managers?.message}
-                    InputProps={{
-                      ...params.InputProps,
-                      endAdornment: (
-                        <>
-                          {loadingUsers ? <CircularProgress color="inherit" size={20} /> : null}
-                          {params.InputProps.endAdornment}
-                        </>
-                      ),
-                    }}
-                  />
-                )}
-              />
-            )}
-          />
-        </Grid>
-
-        <Grid item xs={12}>
-          <Controller
-            name="additionalPerformers"
-            control={control}
-            render={({ field: { onChange, value } }) => (
-              <Autocomplete
-                multiple
-                options={performers}
-                getOptionLabel={(option) => option.profile.name}
-                loading={loadingUsers}
-                value={value}
-                onChange={(_, newValue) => onChange(newValue)}
-                renderInput={(params) => (
-                  <TextField
-                    {...params}
-                    label="Additional Performers"
-                    margin="dense"
-                    error={!!errors.additionalPerformers}
-                    helperText={errors.additionalPerformers?.message}
-                    InputProps={{
-                      ...params.InputProps,
-                      endAdornment: (
-                        <>
-                          {loadingUsers ? <CircularProgress color="inherit" size={20} /> : null}
-                          {params.InputProps.endAdornment}
-                        </>
-                      ),
-                    }}
-                  />
-                )}
-              />
-            )}
           />
         </Grid>
       </Grid>

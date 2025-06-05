@@ -95,6 +95,8 @@ router.post('/',
       required: true,
       properties: {
         name: { type: 'string', required: true },
+        phone: { type: 'string' },
+        mapUrl: { type: 'string' },
         address: {
           type: 'object',
           properties: {
@@ -194,6 +196,8 @@ router.patch('/:id',
       type: 'object',
       properties: {
         name: { type: 'string' },
+        phone: { type: 'string' },
+        mapUrl: { type: 'string' },
         address: {
           type: 'object',
           properties: {

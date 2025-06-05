@@ -78,7 +78,7 @@ router.post('/login', async (ctx) => {
     if (!user) {
       console.log('❌ User not found:', email);
       ctx.status = 401;
-      ctx.body = { message: 'Invalid email or password' };
+      ctx.body = { message: 'User not found' };
       return;
     }
 

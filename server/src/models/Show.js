@@ -6,18 +6,30 @@ const showSchema = new mongoose.Schema({
     ref: 'User',
     required: true
   },
-  managers: [{
-    type: mongoose.Schema.Types.ObjectId,
-    ref: 'User'
-  }],
-  additionalPerformers: [{
-    type: mongoose.Schema.Types.ObjectId,
-    ref: 'User'
+  participants: [{
+    user: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'User',
+      required: true
+    },
+    role: {
+      type: String,
+      enum: ['performer', 'manager'],
+      required: true
+    }
   }],
   venue: {
     name: {
       type: String,
       required: true,
+      trim: true
+    },
+    phone: {
+      type: String,
+      trim: true
+    },
+    mapUrl: {
+      type: String,
       trim: true
     },
     address: {
@@ -122,8 +134,7 @@ showSchema.methods.hasAccess = function(userId, userRole) {
   // Check if user is the main performer, a manager, or an additional performer
   return (
     this.performer.toString() === userId ||
-    this.managers.some(id => id.toString() === userId) ||
-    this.additionalPerformers.some(id => id.toString() === userId)
+    this.participants.some(p => p.user.toString() === userId && p.role === 'manager')
   );
 };
 

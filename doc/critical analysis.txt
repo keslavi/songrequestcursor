@@ -1,0 +1,97 @@
+You are a senior software engineer reviewing my code. Be direct and analytical. Do not compliment or sugarcoat anything. Focus on clarity, correctness, and efficiency. If you notice inconsistencies, better alternatives, or potential bugs, point them out clearly and explain why. Suggest improvements with justification.
+
+
+
+rich, 
+HOLY. SHIT. 
+i was building up slowly, but it started anticipating me and trying to leapfrog, so i built a prompt with the specification and IT JUST BUILT IT.
+
+i welcome advice/suggestions... i remember you saying something about using an md file instead, this just expanded.
+
+
+it's time to talk about the intent of this application. 
+this will be a platform for dueling pianists hosting shows to combine and present their songlists for the show
+
+it is based on the concept of streamersonglist.com, but will add the ability to send the user request to their venmo app on their mobile phone. the requests should be preformatted, allowing the customer to click "pay" and not providing "request" option.  other types of mobile payment are nice addition but the focus is venmo.
+
+the client is using react-hook-forms with mui to handle forms.
+
+performer=the dueling pianist
+guest= an unregistered or registered user that is not a performer. 
+user= user is also guest if used in this document.
+
+performer functionality:
+performers can add their songlists individually or via bulk csv and provide the following info: 
+name=name of song
+artist= the recording artist originally singing the song
+tags: an array of strings that provide info to search for the song later. examples:   ["80s","90s","pop","rock","country","novelty"]
+key: the key of the song, !important not presented to guests
+bpm: the bpm of the song !important not presented to guests
+notes: additional notes for the other performer !important not presented to guests
+
+after performers have uploaded their songlist, they can create shows with the following fields:
+  subject 
+  body
+  date
+  location
+  url= livestreaming url
+  qr= a generated qr code with a link that will take guests to the show in the client.
+  map= location information for maps, probably google or apple.
+
+guest functionality:
+guests will be able to shows that are upcoming. if location services are available on the guest phone and they are at the location at the correct datetime range, take them directly to the show.
+
+guests in a show will make requests; 
+  each request can be up to 3 songs and have the following fields: 
+    name1= song name and artist
+    name2= song name and artist
+    name3= song name and artist
+    idSongs= not shown to user... an array of the songId for later linking
+    requestedBy=(autofilled if possible from the mobile device)
+    dedication/event= optional
+    phoneNumber= optional phone number, autofilled if possible with ability to clear
+    email= optional email, autfilled if possible with ability to clear
+    status= not shown to guest, helps to track if song it completed.  status values: requested, played, cancelled
+
+    tip= amount paid for request
+    datetime= not shown to guest, for later usage by performer
+
+
+  they can make multiple requests over the evening
+  they can view the performers' songlists and filter by tag.
+
+  in the ui, the user can add a song from the searchable grid into the name field/input control
+    the user can type in the name fields, which will do a search on what's typed and present the likely options (Select control with freesolo option. )
+
+  when the user is ready, they click the "Request" button. 
+
+  when request button is clicked, 
+    the request will be added to the show's song queue
+    the ui generates a venmo link with all the info that will open the venmo app on their phone. 
+
+  if possible, once the venmo app completes, return to the ui and included the receipt and amt of the payment to the api to place in the show song queue
+
+show song queue: 
+  performers can see the show song queue, which shows the following:
+    request time= hours:minutes since request was made
+    tip=tip amount of request
+    names=song names requested, ideally with artist.
+    requestedby
+    dedication
+    if idSongs is avaible, include key, bpm, notes from performer's songList
+    if it's possible to somehow link the real venmo request to the queue, please do so. 
+
+
+the performer will be able to 
+  look at and sort the show's song queue. 
+  edit the status. if a song is cancelled, if possible, refund the venmo request amount.
+
+
+
+
+
+
+  
+
+
+

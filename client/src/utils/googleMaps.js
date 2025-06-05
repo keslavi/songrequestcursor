@@ -39,10 +39,14 @@ const extractPlaceInfo = (url) => {
 // Function to get place details from Google Maps link
 export const getPlaceDetailsFromLink = async (mapsLink) => {
   try {
+    // Clean up the URL - remove any duplicates
+    const cleanUrl = mapsLink.split('https://')[1];
+    const properUrl = cleanUrl ? `https://${cleanUrl}` : mapsLink;
+
     // If it's a shortened URL, resolve it first
-    const resolvedUrl = mapsLink.includes('maps.app.goo.gl') ? 
-      await resolveShortUrl(mapsLink) : 
-      mapsLink;
+    const resolvedUrl = properUrl.includes('maps.app.goo.gl') ? 
+      await resolveShortUrl(properUrl) : 
+      properUrl;
 
     // Get place details from server
     const response = await axios.get('/api/utils/place-details', {

@@ -35,6 +35,16 @@ export const showSchema = yup.object().shape({
       .required('Venue name is required')
       .min(2, 'Venue name must be at least 2 characters'),
     
+    phone: yup
+      .string()
+      .nullable()
+      .matches(/^(\+\d{1,2}\s?)?\(?\d{3}\)?[\s.-]?\d{3}[\s.-]?\d{4}$/, 'Invalid phone number format'),
+    
+    mapUrl: yup
+      .string()
+      .nullable()
+      .url('Must be a valid URL'),
+    
     address: yup.object().shape({
       street: yup
         .string()
@@ -64,10 +74,12 @@ export const showSchema = yup.object().shape({
         .string()
         .required('Google Maps link is required')
         .url('Must be a valid URL')
-        .test('is-google-maps', 'Must be a Google Maps URL', value => {
-          return value.includes('google.com/maps') || value.includes('goo.gl/maps');
-        })
+        .matches(
+          /maps\.(google|app\.goo)\.gl|google\.[a-z]+\/maps/i,
+          'Must be a Google Maps URL'
+        )
         .test('has-coordinates', 'Unable to extract coordinates from link', value => {
+          if (!value) return false;
           return extractCoordinatesFromMapsLink(value) !== null;
         })
     })
@@ -87,38 +99,27 @@ export const showSchema = yup.object().shape({
     .min(30, 'Show must be at least 30 minutes')
     .max(480, 'Show cannot be longer than 8 hours'),
 
-  managers: yup
+  participants: yup
     .array()
     .of(
       yup.object().shape({
-        _id: yup.string().required(),
-        profile: yup.object().shape({
-          name: yup.string().required()
-        })
+        user: yup.object().shape({
+          _id: yup.string().required('User ID is required'),
+          profile: yup.object().shape({
+            name: yup.string().required('User name is required')
+          })
+        }),
+        role: yup.string().oneOf(['performer', 'manager'], 'Invalid role')
       })
     )
-    .min(1, 'At least one manager is required'),
-
-  additionalPerformers: yup
-    .array()
-    .of(
-      yup.object().shape({
-        _id: yup.string().required(),
-        profile: yup.object().shape({
-          name: yup.string().required()
-        })
-      })
-    ),
+    .min(1, 'At least one participant is required'),
 
   settings: yup.object().shape({
     maxRequestsPerUser: yup
       .number()
-      .required('Max requests per user is required')
-      .min(1, 'Must allow at least 1 request per user')
-      .max(10, 'Cannot allow more than 10 requests per user'),
+      .min(1, 'Must allow at least 1 request per user'),
     allowExplicitSongs: yup
       .boolean()
-      .required('Allow explicit songs setting is required')
   })
 });
 
