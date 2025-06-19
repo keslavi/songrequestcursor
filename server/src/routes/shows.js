@@ -85,16 +85,20 @@ router.get('/:id/details', auth, async (ctx) => {
   ctx.body = show;
 });
 
-// Create new show (performers only)
+// Create new show (admin, performer, organizer)
 router.post('/',
   auth,
-  requireRole(['performer']),
+  requireRole(['admin', 'performer', 'organizer']),
   validateBody({
+    name: { type: 'string', required: true },
+    date: { type: 'string', format: 'date-time', required: true },
+    location: { type: 'string', required: true },
+    description: { type: 'string' },
+    status: { type: 'string', enum: ['draft', 'published', 'cancelled'], default: 'draft' },
     venue: {
       type: 'object',
-      required: true,
       properties: {
-        name: { type: 'string', required: true },
+        name: { type: 'string' },
         phone: { type: 'string' },
         mapUrl: { type: 'string' },
         address: {
@@ -108,83 +112,44 @@ router.post('/',
         },
         location: {
           type: 'object',
-          required: true,
           properties: {
             coordinates: {
               type: 'array',
               items: { type: 'number' },
               minItems: 2,
-              maxItems: 2,
-              required: true
-            }
+              maxItems: 2
+            },
+            mapsLink: { type: 'string' }
           }
         }
       }
     },
-    dateTime: { type: 'string', format: 'date-time', required: true },
-    duration: { type: 'number', minimum: 30 },
-    managers: { type: 'array', items: { type: 'string' } },
-    additionalPerformers: { type: 'array', items: { type: 'string' } },
     settings: {
       type: 'object',
       properties: {
+        allowRequests: { type: 'boolean' },
         maxRequestsPerUser: { type: 'number', minimum: 1 },
-        requestTimeWindow: { type: 'number', minimum: 1 },
-        autoApproveRequests: { type: 'boolean' },
-        requireTip: { type: 'boolean' },
-        suggestedTipAmount: { type: 'number', minimum: 0 },
-        allowExplicitSongs: { type: 'boolean' }
+        requestDeadline: { type: 'string', format: 'date-time' }
       }
     }
   }),
   async ctx => {
     const showData = ctx.request.body;
-    const performer = await User.findById(ctx.state.user.id);
-
-    // Verify managers exist and have appropriate role
-    if (showData.managers) {
-      const managers = await User.find({
-        _id: { $in: showData.managers },
-        role: 'manager'
-      });
-      if (managers.length !== showData.managers.length) {
-        ctx.throw(400, 'One or more managers are invalid');
-      }
-    }
-
-    // Verify additional performers exist and have performer role
-    if (showData.additionalPerformers) {
-      const performers = await User.find({
-        _id: { $in: showData.additionalPerformers },
-        role: 'performer'
-      });
-      if (performers.length !== showData.additionalPerformers.length) {
-        ctx.throw(400, 'One or more additional performers are invalid');
-      }
-    }
-
-    // Get all active and available songs for the show time
-    const availableSongs = performer.songs
-      .filter(song => 
-        song.performerDetails.isActive && 
-        song.isAvailableForShow(showData.dateTime)
-      )
-      .map(song => song._id.toString());
+    const user = await User.findById(ctx.state.user.id);
 
     // Create show
     const show = new Show({
       ...showData,
-      performer: performer._id,
-      availableSongs
+      createdBy: user._id,
+      performers: [user._id] // Add the creator as a performer
     });
 
     await show.save();
 
     // Return created show
     ctx.body = await Show.findById(show._id)
-      .populate('performer', 'profile')
-      .populate('managers', 'profile')
-      .populate('additionalPerformers', 'profile');
+      .populate('createdBy', 'profile')
+      .populate('performers', 'profile');
   }
 );
 

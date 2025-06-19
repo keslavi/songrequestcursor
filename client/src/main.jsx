@@ -1,20 +1,36 @@
-import React from 'react';
-import ReactDOM from 'react-dom/client';
-import App from './App';
-import axios from 'axios';
-import '@/helpers/extensions/lodashExtensions';
-// Configure axios defaults
-axios.defaults.baseURL = import.meta.env.VITE_API_URL || 'http://localhost:5000';
-axios.defaults.withCredentials = true;
+import React from "react";
+import ReactDOM from "react-dom/client";
+//import App from "./app"; //loaded in router
+import { Router } from "./router";
+//import { useStore } from "./store";
+import { ToastContainer } from "react-toastify";
+import { Spinner } from "@/components/spinner";
+import "./scss/index.scss";
+import { ThemeProvider } from "./theme-material";
 
-// Check for existing token
-const token = localStorage.getItem('token');
-if (token) {
-  axios.defaults.headers.common['Authorization'] = `Bearer ${token}`;
-}
-
-ReactDOM.createRoot(document.getElementById('root')).render(
-  <React.StrictMode>
-    <App />
-  </React.StrictMode>
-); 
+//import "./helpers/extensions/console-extension";
+//console.logGroup.test(); //works in any *.js, *.jsx file/*
+ 
+ReactDOM.createRoot(document.getElementById("root")).render(
+  <>
+    {/* <React.StrictMode> */}
+    <Spinner />
+    <ToastContainer
+      position="top-right"
+      autoClose={5000}
+      hideProgressBar={false}
+      newestOnTop={false}
+      closeOnClick
+      rtl={false}
+      pauseOnFocusLoss
+      draggable
+      pauseOnHover
+    />
+    {/* <Provider store={useStore}> */}
+      <ThemeProvider>
+        <Router />
+      </ThemeProvider>
+    {/* </Provider> */}
+    {/* </React.StrictMode> */}
+  </>
+);

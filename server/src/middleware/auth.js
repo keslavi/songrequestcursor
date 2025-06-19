@@ -9,7 +9,7 @@ export const authenticateToken = async (ctx, next) => {
 
     if (!token) {
       ctx.status = 401;
-      ctx.body = { message: 'Authentication token is required' };
+      ctx.body = { message: 'No token provided' };
       return;
     }
 
@@ -24,9 +24,9 @@ export const authenticateToken = async (ctx, next) => {
 
     ctx.user = user;
     await next();
-  } catch (error) {
+  } catch (err) {
     ctx.status = 401;
-    ctx.body = { message: 'Invalid or expired token' };
+    ctx.body = { message: 'Invalid token' };
   }
 };
 
@@ -37,4 +37,15 @@ export const requireAdmin = async (ctx, next) => {
     return;
   }
   await next();
+};
+
+export const requireRole = (roles) => {
+  return async (ctx, next) => {
+    if (!roles.includes(ctx.user.role)) {
+      ctx.status = 403;
+      ctx.body = { message: 'Insufficient permissions' };
+      return;
+    }
+    await next();
+  };
 }; 

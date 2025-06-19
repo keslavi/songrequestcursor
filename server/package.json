@@ -5,9 +5,11 @@
   "main": "src/index.js",
   "type": "module",
   "scripts": {
-    "start": "node src/index.js",
+    "start": "npm run dev",
     "dev": "nodemon src/index.js",
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "build": "cd .. && npm install && npm run build && node -e \"const fs=require('fs');const path=require('path');const copyDir=(src,dest)=>{if(!fs.existsSync(dest))fs.mkdirSync(dest,{recursive:true});const entries=fs.readdirSync(src,{withFileTypes:true});for(const entry of entries){const srcPath=path.join(src,entry.name);const destPath=path.join(dest,entry.name);if(entry.isDirectory()){copyDir(srcPath,destPath);}else{fs.copyFileSync(srcPath,destPath);}}};copyDir('./dist','./server-koa/public');\"",
+    "start:prod": "NODE_ENV=production node src/index.js"
   },
   "dependencies": {
     "@googlemaps/google-maps-services-js": "^3.4.1",
@@ -26,5 +28,8 @@
   },
   "devDependencies": {
     "nodemon": "^3.0.2"
+  },
+  "engines": {
+    "node": ">=18.0.0"
   }
 }

@@ -7,7 +7,8 @@ const userSchema = new mongoose.Schema({
     required: true,
     unique: true,
     trim: true,
-    minlength: 3
+    minlength: 3,
+    maxlength: 30
   },
   email: {
     type: String,
@@ -18,20 +19,53 @@ const userSchema = new mongoose.Schema({
   },
   password: {
     type: String,
-    required: true,
-    minlength: 6
+    required: function() {
+      // Password is only required for non-social auth users
+      return !this.profile?.auth0Id;
+    },
+    minlength: 8
   },
   role: {
     type: String,
-    enum: ['user', 'admin', 'performer', 'guest', 'manager'],
-    default: 'user'
-  }
+    enum: ['guest', 'user', 'admin','performer','organizer'],
+    default: 'guest'
+  },
+  profile: {
+    firstName: String,
+    lastName: String,
+    name: String,
+    bio: String,
+    avatar: String,
+    picture: String, // For social auth profile pictures
+    auth0Id: String, // Auth0 user ID (e.g., "google-oauth2|123456789")
+    lastSocialLogin: Date, // Track when user last logged in via social auth
+    socialProvider: String, // Track which social provider (google, facebook, etc.)
+    phoneNumber: String, // Phone number from social auth
+    emailVerified: Boolean, // Email verification status
+    phoneNumberVerified: Boolean, // Phone verification status
+    givenName: String, // First name from social auth
+    familyName: String, // Last name from social auth
+    nickname: String, // Nickname from social auth
+    locale: String // User's locale/language preference
+  },
+  isActive: {
+    type: Boolean,
+    default: true
+  },
+  lastLogin: Date,
+  resetPasswordToken: String,
+  resetPasswordExpires: Date
 }, {
   timestamps: true
 });
 
-// Hash password before saving
+// Hash password before saving (only for non-social auth users)
 userSchema.pre('save', async function(next) {
+  // Skip password hashing for social auth users
+  if (this.profile?.auth0Id) {
+    return next();
+  }
+  
   if (!this.isModified('password')) return next();
   
   try {
@@ -43,19 +77,33 @@ userSchema.pre('save', async function(next) {
   }
 });
 
-// Method to compare password
+// Compare password method (only for non-social auth users)
 userSchema.methods.comparePassword = async function(candidatePassword) {
+  // Social auth users don't have passwords to compare
+  if (this.profile?.auth0Id) {
+    return false;
+  }
   return bcrypt.compare(candidatePassword, this.password);
 };
 
-// Method to return user profile without sensitive data
+// Check if user is social auth user
+userSchema.methods.isSocialUser = function() {
+  return !!this.profile?.auth0Id;
+};
+
+// Convert user to profile object (excluding sensitive data)
 userSchema.methods.toProfile = function() {
   return {
     id: this._id,
     username: this.username,
     email: this.email,
     role: this.role,
-    createdAt: this.createdAt
+    profile: this.profile,
+    isActive: this.isActive,
+    lastLogin: this.lastLogin,
+    isSocialUser: this.isSocialUser(),
+    createdAt: this.createdAt,
+    updatedAt: this.updatedAt
   };
 };
 

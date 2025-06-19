@@ -1,13 +1,20 @@
 {
   "compilerOptions": {
-    "baseUrl": ".",
+    "baseUrl": "./src",
     "paths": {
-      "@/*": ["src/*"]
+      "@/*": ["./src/*"],
+      "pages/*": ["pages/*"],
+      "components/*": ["components/*"],
+      "helpers/*": ["helpers/*"],
+      "pages": ["pages/*"],
+      "store": ["store/*"],
+      "scss": ["scss/*"],
+      "test": ["test/*"],
     },
     "types":[
-      "vitest"
-    ]   
-  },
-  "include": ["src/**/*.ts", "src/**/*.tsx", "src/**/*.js", "src/**/*.jsx"],
-  "exclude": ["node_modules", "dist", "build", "out", "coverage"]
-} 
+      "vitest","vitest/globals"
+    ]
+  }, 
+  "include": ["_setupTest.js","src/**/*.ts", "src/**/*.tsx", "src/**/*.js", "src/**/*.jsx"],
+  "exclude": ["node_modules", "dist", "build", "out", "coverage", "**/*.spec.ts", "**/*.test.ts"]
+}

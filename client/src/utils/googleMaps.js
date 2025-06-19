@@ -1,10 +1,10 @@
-import axios from 'axios';
+import api from "@/store/api";
 
 // Function to resolve shortened Google Maps URL
 const resolveShortUrl = async (shortUrl) => {
   try {
     console.log('Attempting to resolve URL:', shortUrl);
-    const response = await axios.get('/api/utils/resolve-url', {
+    const response = await api.get('/api/utils/resolve-url', {
       params: { url: shortUrl }
     });
     console.log('Resolved URL:', response.data.resolvedUrl);
@@ -49,7 +49,7 @@ export const getPlaceDetailsFromLink = async (mapsLink) => {
       properUrl;
 
     // Get place details from server
-    const response = await axios.get('/api/utils/place-details', {
+    const response = await api.get('/api/utils/place-details', {
       params: { url: resolvedUrl }
     });
 
