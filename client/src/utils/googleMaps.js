@@ -4,7 +4,7 @@ import api from "@/store/api";
 const resolveShortUrl = async (shortUrl) => {
   try {
     console.log('Attempting to resolve URL:', shortUrl);
-    const response = await api.get('/api/utils/resolve-url', {
+    const response = await api.get('utils/resolve-url', {
       params: { url: shortUrl }
     });
     console.log('Resolved URL:', response.data.resolvedUrl);
@@ -49,7 +49,7 @@ export const getPlaceDetailsFromLink = async (mapsLink) => {
       properUrl;
 
     // Get place details from server
-    const response = await api.get('/api/utils/place-details', {
+    const response = await api.get('utils/place-details', {
       params: { url: resolvedUrl }
     });
 

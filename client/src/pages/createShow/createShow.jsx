@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import { isEmpty } from "lodash";
 import { toast } from "react-toastify";
 import { useNavigate } from "react-router-dom";
-import { Button, CircularProgress } from "@mui/material";
+import { Button, CircularProgress, Box, Typography } from "@mui/material";
 import { store } from "store";
 import { getPlaceDetailsFromLink } from "@/utils/googleMaps";
 
@@ -12,8 +12,9 @@ import {
   FormProvider,
   useFormProvider,
   Input,
+  NavSticky,
   Row,
-  //TextareaDebug,
+  TextareaDebug,
   Fieldset,
   BtnContinueSave,
 } from "components";
@@ -29,6 +30,7 @@ export const CreateShow = () => {
   const showCreate = store.use.showCreate();
   const navigate = useNavigate();
   const [loadingPlace, setLoadingPlace] = useState(false);
+  const [isMobile, setIsMobile] = useState(false);
 
   // Check if user has permission to create shows
   useEffect(() => {
@@ -37,6 +39,15 @@ export const CreateShow = () => {
       navigate("/");
     }
   }, [user, navigate]);
+
+  // Detect mobile device
+  useEffect(() => {
+    const checkMobile = () => {
+      return /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent) ||
+        window.innerWidth <= 768;
+    };
+    setIsMobile(checkMobile());
+  }, []);
 
   const frmMethods = useFormProvider({
     resolver,
@@ -105,6 +116,83 @@ export const CreateShow = () => {
     updateVenueDetails();
   }, [mapsLink, setValue]);
 
+  // Function to open Google Maps app and get current location
+  const openGoogleMapsForLocation = () => {
+    if (!isMobile) {
+      toast.info('This feature is available on mobile devices');
+      return;
+    }
+
+    // Try to get current location first
+    if (navigator.geolocation) {
+      navigator.geolocation.getCurrentPosition(
+        (position) => {
+          const { latitude, longitude } = position.coords;
+
+          // Open Google Maps app with current location
+          const mapsUrl = `https://maps.google.com/maps?q=${latitude},${longitude}`;
+
+          // Try to open native app first
+          const nativeMapsUrl = `comgooglemaps://?q=${latitude},${longitude}`;
+
+          // Check if Google Maps app is installed
+          const link = document.createElement('a');
+          link.href = nativeMapsUrl;
+          link.style.display = 'none';
+          document.body.appendChild(link);
+
+          // Try to open native app, fallback to web
+          try {
+            link.click();
+            toast.info('Google Maps app opened. Please search for your venue and share the location.');
+          } catch (error) {
+            // Fallback to web version
+            window.open(mapsUrl, '_blank');
+            toast.info('Google Maps opened in browser. Please search for your venue and share the location.');
+          }
+
+          document.body.removeChild(link);
+        },
+        (error) => {
+          console.error('Geolocation error:', error);
+          // Open Google Maps without location
+          const mapsUrl = 'https://maps.google.com/';
+          const nativeMapsUrl = 'comgooglemaps://';
+
+          try {
+            window.location.href = nativeMapsUrl;
+            toast.info('Google Maps app opened. Please search for your venue and share the location.');
+          } catch (error) {
+            window.open(mapsUrl, '_blank');
+            toast.info('Google Maps opened in browser. Please search for your venue and share the location.');
+          }
+        }
+      );
+    } else {
+      toast.error('Geolocation is not supported by this browser');
+    }
+  };
+
+  // Function to open Google Maps for venue search
+  const openGoogleMapsForSearch = () => {
+    if (!isMobile) {
+      toast.info('This feature is available on mobile devices');
+      return;
+    }
+
+    // Open Google Maps app for search
+    const nativeMapsUrl = 'comgooglemaps://?q=';
+
+    try {
+      window.location.href = nativeMapsUrl;
+      toast.info('Google Maps app opened. Please search for your venue and share the location.');
+    } catch (error) {
+      // Fallback to web version
+      window.open('https://maps.google.com/', '_blank');
+      toast.info('Google Maps opened in browser. Please search for your venue and share the location.');
+    }
+  };
+
   useEffect(() => {
     if (errors) {
       errorNotification(errors);
@@ -167,7 +255,7 @@ export const CreateShow = () => {
   return (
     <>
       <Row>
-        <Col size={{ xs: 12 }}>
+        <Col xs={12}>
           <h2>Create Show</h2>
         </Col>
       </Row>
@@ -181,104 +269,33 @@ export const CreateShow = () => {
               <Input name="id" />
             </Row>
           </div>
-
-          {/* Venue Information Section */}
-          <Fieldset legend="Venue Information">
-            {/* <Row>
-              <Col xs={12}>
-                <h3>Venue Information</h3>
-              </Col>
-            </Row> */}
-            <Row>
-              <Input
-                size={{ xs: 12 }}
-                name="venue.location.mapsLink"
-                label="Google Maps Link"
-                placeholder="Paste the venue's Google Maps share link here"
-                info="Right-click the venue on Google Maps and select 'Share' to get the link"
-                InputProps={{
-                  endAdornment: loadingPlace && (
-                    <CircularProgress color="inherit" size={20} />
-                  )
-                }}
-              />
-            </Row>
-            <Row>
-              <Input
-                size={{ xs: 6, xm: 7 }}
-                name="venue.name"
-                label="Venue Name"
-                //info="Enter the name of the venue"
-              />
-              <Input
-                size={{ xs: 6, xm: 7 }}
-                name="venue.phone"
-                label="Venue Phone"
-                //info="Contact number for the venue"
-              />
-            </Row>
-            <Row>
-              <Input
-                size={{ xs: 12 }}
-                name="venue.address.street"
-                label="Street Address"
-                //info="Street address of the venue"
-              />
-            </Row>
-            <Row>
-              <Input
-                size={{ xs: 6, xm: 3 }}
-                name="venue.address.city"
-                label="City"
-                //info="City where the venue is located"
-              />
-              <Input
-                size={{ xs: 6, xm: 3 }}
-                name="venue.address.state"
-                label="State"
-                //info="State or province"
-              />
-              <Input
-                size={{ xs: 6, xm: 3 }}
-                name="venue.address.zip"
-                label="ZIP Code"
-                //info="Postal/ZIP code"
-              />
-            </Row>
-          </Fieldset>
-
           {/* Show Details Section */}
-          <Fieldset>
-            <Row>
-              <Col xs={12}>
-                <h3>Show Details</h3>
-              </Col>
-            </Row>
+          <Fieldset legend="Show Details">
             <Row>
               <Input
-                size={{ xs: 6, xm: 7 }}
+                size={{ xs: 12, xm: 6 }}
                 name="name"
                 label="Show Name"
-                //info="Enter the name of your show"
               />
               <Input
+                size={{ xs: 12, xm: 6 }}
                 name="location"
                 label="Location"
-                //info="Where will the show take place?"
               />
             </Row>
             <Row>
               <Input
+                size={{ xs: 4 }}
                 datepicker
                 name="date"
                 label="Show Date & Time"
-                //info="When will the show happen?"
               />
-              <Input
+            </Row>
+            <Row>
+              <Input size={{ xs: 12 }}
                 name="description"
                 label="Description"
                 textarea
-                //info="Tell people about your show"
               />
             </Row>
           </Fieldset>
@@ -298,6 +315,104 @@ export const CreateShow = () => {
               />
             </Row>
           </Fieldset>
+
+          {/* Venue Information Section */}
+          <Fieldset>
+            <Row>
+              <Col size={{ xs: 12 }}>
+                <h3>Venue Information</h3>
+              </Col>
+            </Row>
+            <Row>
+              <Input size={{ xs: 12 }}
+                name="venue.location.mapsLink"
+                label="Google Maps Link"
+                placeholder="Paste the venue's Google Maps share link here"
+                info="Right-click the venue on Google Maps and select 'Share' to get the link"
+                InputProps={{
+                  endAdornment: loadingPlace && (
+                    <CircularProgress color="inherit" size={20} />
+                  )
+                }}
+              />
+            </Row>
+
+            {/* Mobile Google Maps Integration */}
+            {isMobile && (
+              <Row>
+                <Col size={{ xs: 12 }}>
+                  <Box sx={{ mt: 2, mb: 2, p: 2, border: '1px solid #ddd', borderRadius: 1 }}>
+                    <Typography variant="subtitle2" gutterBottom>
+                      📱 Mobile Google Maps Integration
+                    </Typography>
+                    <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
+                      Use your device's Google Maps app to find and share venue locations
+                    </Typography>
+                    <Box sx={{ display: 'flex', gap: 1, flexWrap: 'wrap' }}>
+                      <Button
+                        variant="outlined"
+                        size="small"
+                        onClick={openGoogleMapsForLocation}
+                        sx={{ fontSize: '0.8rem' }}
+                      >
+                        📍 Use Current Location
+                      </Button>
+                      <Button
+                        variant="outlined"
+                        size="small"
+                        onClick={openGoogleMapsForSearch}
+                        sx={{ fontSize: '0.8rem' }}
+                      >
+                        🔍 Search for Venue
+                      </Button>
+                    </Box>
+                    <Typography variant="caption" color="text.secondary" sx={{ mt: 1, display: 'block' }}>
+                      After opening Google Maps, search for your venue, tap the share button, and paste the link above.
+                    </Typography>
+                  </Box>
+                </Col>
+              </Row>
+            )}
+
+            <Row>
+              <Input
+                size={{ xs: 12, xm: 6 }}
+                name="venue.name"
+                label="Venue Name"
+              />
+              <Input
+                size={{ xs: 12, xm: 6 }}
+                name="venue.phone"
+                label="Venue Phone"
+              />
+            </Row>
+            <Row>
+              <Input
+                size={{ xs: 12, xm: 6 }}
+                name="venue.address.street"
+                label="Street Address"
+              />
+            </Row>
+            <Row>
+              <Input
+                size={{ xs: 6, xm: 3 }}
+                name="venue.address.city"
+                label="City"
+              />
+              <Input
+                size={{ xs: 6, xm: 4 }}
+                name="venue.address.state"
+                label="State"
+              />
+              <Input
+                size={{ xs: 4, xm: 3 }}
+                name="venue.address.zip"
+                label="ZIP Code"
+              />
+            </Row>
+          </Fieldset>
+
+
           <br />
           <Fieldset>
             <Row>
@@ -310,7 +425,6 @@ export const CreateShow = () => {
               <Input
                 name="settings.maxRequestsPerUser"
                 label="Max Requests Per User"
-                info="How many songs can each person request?"
               />
             </Row>
             <Row>

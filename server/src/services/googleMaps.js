@@ -4,11 +4,38 @@ import axios from 'axios';
 
 const client = new Client({});
 
+// Resolve shortened Google Maps URL
+const resolveShortUrl = async (shortUrl) => {
+  try {
+    console.log('🔗 Attempting to resolve shortened URL:', shortUrl);
+    
+    const response = await axios.get(shortUrl, {
+      maxRedirects: 5,
+      validateStatus: null,
+      headers: {
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36'
+      }
+    });
+
+    const finalUrl = response.request.res.responseUrl || shortUrl;
+    console.log('✅ Resolved URL:', finalUrl);
+    return finalUrl;
+  } catch (error) {
+    console.error('❌ Error resolving shortened URL:', error.message);
+    throw new Error(`Failed to resolve shortened URL: ${error.message}`);
+  }
+};
+
 // Extract coordinates and place name from Google Maps URL
 const extractPlaceInfo = (url) => {
+  console.log('🔍 Extracting place info from URL:', url);
+  
   // Extract coordinates
   const coordsMatch = url.match(/@(-?\d+\.\d+),(-?\d+\.\d+)/);
-  if (!coordsMatch) return null;
+  if (!coordsMatch) {
+    console.log('❌ No coordinates found in URL');
+    return null;
+  }
 
   const lat = parseFloat(coordsMatch[1]);
   const lng = parseFloat(coordsMatch[2]);
@@ -18,6 +45,9 @@ const extractPlaceInfo = (url) => {
   const placeName = placeMatch ? 
     decodeURIComponent(placeMatch[1].replace(/\+/g, ' ')) : 
     null;
+
+  console.log('📍 Found coordinates:', lat, lng);
+  console.log('📍 Found place name:', placeName);
 
   return {
     coordinates: [lng, lat], // MongoDB uses [longitude, latitude]
@@ -29,6 +59,8 @@ const extractPlaceInfo = (url) => {
 // Get address details from coordinates using OpenStreetMap's Nominatim
 const getAddressFromCoordinates = async (lat, lng) => {
   try {
+    console.log('🌍 Getting address details for coordinates:', lat, lng);
+    
     const response = await axios.get(`https://nominatim.openstreetmap.org/reverse`, {
       params: {
         lat,
@@ -42,12 +74,15 @@ const getAddressFromCoordinates = async (lat, lng) => {
     });
 
     const address = response.data.address;
-    return {
+    const addressDetails = {
       street: `${address.house_number || ''} ${address.road || ''}`.trim(),
       city: address.city || address.town || address.village || '',
       state: address.state || '',
       zip: address.postcode || '',
     };
+    
+    console.log('📍 Address details:', addressDetails);
+    return addressDetails;
   } catch (error) {
     console.error('❌ Geocoding error:', error);
     return null;
@@ -59,8 +94,19 @@ export const getPlaceDetailsFromLink = async (mapsLink) => {
   try {
     console.log('🔍 Processing Google Maps link:', mapsLink);
     
-    // Extract basic info from URL
-    const placeInfo = extractPlaceInfo(mapsLink);
+    // Clean up the URL - remove any duplicates
+    const cleanUrl = mapsLink.split('https://')[1];
+    const properUrl = cleanUrl ? `https://${cleanUrl}` : mapsLink;
+
+    // If it's a shortened URL, resolve it first
+    let resolvedUrl = properUrl;
+    if (properUrl.includes('maps.app.goo.gl')) {
+      console.log('🔗 Detected shortened URL, resolving...');
+      resolvedUrl = await resolveShortUrl(properUrl);
+    }
+
+    // Extract basic info from resolved URL
+    const placeInfo = extractPlaceInfo(resolvedUrl);
     if (!placeInfo) {
       throw new Error('Could not extract place information from URL');
     }

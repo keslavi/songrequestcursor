@@ -6,7 +6,7 @@ import react from "@vitejs/plugin-react-swc";
 export default defineConfig({
   server: {
     port: 3000,
-    host: true,
+    host: '0.0.0.0', // Allow external connections
     proxy: {
       //mock server should have the same endpoint as the eventual live endpoint
       //that way we can just remove "mock/" and switch to live endpoint.
