@@ -13,6 +13,7 @@ export default defineConfig({
       "/api": {   
         target: "http://localhost:5000",
         changeOrigin: true,
+        rewrite: (path) => path.replace(/^\/api\/api/, "/api"),
         //rewrite: (path)=> path.replace(/^\/api\/mock/,"api"),
       },
 
@@ -54,10 +55,15 @@ export default defineConfig({
     include: [
       '@emotion/react',
       '@emotion/styled',
+      '@mui/material',
       '@mui/material/Tooltip',
       '@mui/material/styles/createTheme',
       '@mui/material/Box',
       '@mui/icons-material',
+      '@mui/x-date-pickers',
+      '@mui/x-data-grid',
+      '@mui/lab',
+      '@mui/system',
     ]
   },
   envDir: '.',

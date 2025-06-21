@@ -5,6 +5,7 @@ import { isEmpty } from "lodash";
 import { useForm } from "react-hook-form";
 //import { Button } from "@mui/material";
 import { processChildren } from "./formhelper.utility";
+import { FormProvider } from "../form-provider";
 //import { store } from "store";
 
 //console.log group test: uncomment and view in console
@@ -148,6 +149,12 @@ export const Formhelper = (props) => {
   const children = props.children || chidrenDefault();
 
   // React hook form and validation***********************
+  const methods = useForm({
+    resolver,
+    defaultValues: item,
+    //mode:"onChange"
+  });
+  
   const {
     control,
     formState: { errors },
@@ -156,11 +163,8 @@ export const Formhelper = (props) => {
     reset,
     setValue,
     //watch,
-  } = useForm({
-    resolver,
-    defaultValues: item,
-    //mode:"onChange"
-  });
+  } = methods;
+  
   const attributes = { control, errors };
   useEffect(() => {
     if (errors) {
@@ -186,15 +190,17 @@ export const Formhelper = (props) => {
         <li>allow for developer to look at tests visually</li>
         <li>tests are in formhelper/*.test.jsx</li>
       </ul>
-      <form onSubmit={handleSubmit(onSubmitSuccess)}>
-        {/* don't install components in here, use childrenDefault() */}
-        {processChildren(children, attributes)}
-        <Row>
-          <Col>
-            <input name="btnSubmit" type="submit" value="Submit" />
-          </Col>
-        </Row>
-      </form>
+      <FormProvider {...methods}>
+        <form onSubmit={handleSubmit(onSubmitSuccess)}>
+          {/* don't install components in here, use childrenDefault() */}
+          {processChildren(children, attributes)}
+          <Row>
+            <Col>
+              <input name="btnSubmit" type="submit" value="Submit" />
+            </Col>
+          </Row>
+        </form>
+      </FormProvider>
       <label>submitValues</label>
       <br />
       <textarea
