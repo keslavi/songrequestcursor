@@ -1,39 +1,10 @@
 import Router from '@koa/router';
-import { auth, requireRole } from '../middleware/auth.js';
-import { validateBody } from '../middleware/validate.js';
-import Show from '../models/Show.js';
-import User from '../models/User.js';
+import { authenticateToken, requireRole } from '../middleware/auth.js';
+import { validateRequest, schemas } from '../middleware/validate.js';
+import { Show } from '../models/Show.js';
+import { User } from '../models/User.js';
 
 const router = new Router({ prefix: '/api/shows' });
-
-// Get shows near a location (public)
-router.get('/nearby', async (ctx) => {
-  const { lat, lng, radius = 50 } = ctx.query; // radius in kilometers
-
-  try {
-    const shows = await Show.find({
-      'venue.location': {
-        $near: {
-          $geometry: {
-            type: 'Point',
-            coordinates: [parseFloat(lng), parseFloat(lat)]
-          },
-          $maxDistance: radius * 1000 // Convert km to meters
-        }
-      },
-      dateTime: { $gte: new Date() },
-      status: 'scheduled'
-    })
-    .populate('performer', 'profile')
-    .sort({ dateTime: 1 })
-    .limit(50);
-
-    ctx.body = shows;
-  } catch (error) {
-    ctx.status = 500;
-    ctx.body = { message: error.message };
-  }
-});
 
 // Get show by ID (public view)
 router.get('/:id', async (ctx) => {
@@ -66,7 +37,7 @@ router.get('/:id', async (ctx) => {
 });
 
 // Get show details (authenticated)
-router.get('/:id/details', auth, async (ctx) => {
+router.get('/:id/details', authenticateToken, async (ctx) => {
   const show = await Show.findById(ctx.params.id)
     .populate('performer', 'profile')
     .populate('managers', 'profile')
@@ -87,52 +58,9 @@ router.get('/:id/details', auth, async (ctx) => {
 
 // Create new show (admin, performer, organizer)
 router.post('/',
-  auth,
+  authenticateToken,
   requireRole(['admin', 'performer', 'organizer']),
-  validateBody({
-    name: { type: 'string', required: true },
-    date: { type: 'string', format: 'date-time', required: true },
-    location: { type: 'string', required: true },
-    description: { type: 'string' },
-    status: { type: 'string', enum: ['draft', 'published', 'cancelled'], default: 'draft' },
-    venue: {
-      type: 'object',
-      properties: {
-        name: { type: 'string' },
-        phone: { type: 'string' },
-        mapUrl: { type: 'string' },
-        address: {
-          type: 'object',
-          properties: {
-            street: { type: 'string' },
-            city: { type: 'string' },
-            state: { type: 'string' },
-            zip: { type: 'string' }
-          }
-        },
-        location: {
-          type: 'object',
-          properties: {
-            coordinates: {
-              type: 'array',
-              items: { type: 'number' },
-              minItems: 2,
-              maxItems: 2
-            },
-            mapsLink: { type: 'string' }
-          }
-        }
-      }
-    },
-    settings: {
-      type: 'object',
-      properties: {
-        allowRequests: { type: 'boolean' },
-        maxRequestsPerUser: { type: 'number', minimum: 1 },
-        requestDeadline: { type: 'string', format: 'date-time' }
-      }
-    }
-  }),
+  validateRequest(schemas.show.create),
   async ctx => {
     const showData = ctx.request.body;
     const user = await User.findById(ctx.state.user.id);
@@ -155,53 +83,8 @@ router.post('/',
 
 // Update show (requires access)
 router.patch('/:id',
-  auth,
-  validateBody({
-    venue: {
-      type: 'object',
-      properties: {
-        name: { type: 'string' },
-        phone: { type: 'string' },
-        mapUrl: { type: 'string' },
-        address: {
-          type: 'object',
-          properties: {
-            street: { type: 'string' },
-            city: { type: 'string' },
-            state: { type: 'string' },
-            zip: { type: 'string' }
-          }
-        },
-        location: {
-          type: 'object',
-          properties: {
-            coordinates: {
-              type: 'array',
-              items: { type: 'number' },
-              minItems: 2,
-              maxItems: 2
-            }
-          }
-        }
-      }
-    },
-    dateTime: { type: 'string', format: 'date-time' },
-    duration: { type: 'number', minimum: 30 },
-    managers: { type: 'array', items: { type: 'string' } },
-    additionalPerformers: { type: 'array', items: { type: 'string' } },
-    status: { type: 'string', enum: ['scheduled', 'in-progress', 'completed', 'cancelled'] },
-    settings: {
-      type: 'object',
-      properties: {
-        maxRequestsPerUser: { type: 'number', minimum: 1 },
-        requestTimeWindow: { type: 'number', minimum: 1 },
-        autoApproveRequests: { type: 'boolean' },
-        requireTip: { type: 'boolean' },
-        suggestedTipAmount: { type: 'number', minimum: 0 },
-        allowExplicitSongs: { type: 'boolean' }
-      }
-    }
-  }),
+  authenticateToken,
+  validateRequest(schemas.show.update),
   async ctx => {
     const show = await Show.findById(ctx.params.id);
 
@@ -257,7 +140,7 @@ router.patch('/:id',
 
 // Get shows for authenticated user
 router.get('/user/me',
-  auth,
+  authenticateToken,
   async ctx => {
     let query = {};
     

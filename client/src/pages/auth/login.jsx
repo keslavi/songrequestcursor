@@ -42,7 +42,7 @@ const Login = () => {
   return (
     <>
       <Row>
-        <Col xs={12}>
+        <Col size={{ xs: 12 }}>
           <h2>Login</h2>
         </Col>
       </Row>

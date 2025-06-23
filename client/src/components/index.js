@@ -11,5 +11,6 @@ export * from './navbar/navbar';
 export * from './modal';
 export * from './label-heading';
 export * from './info-popover'; 
+export * from './google-maps/google-maps';
 
 

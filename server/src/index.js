@@ -15,6 +15,8 @@ import protectedRoutes from './routes/protected.js';
 import utilsRoutes from './routes/utils.js';
 import taskRoutes from './routes/tasks.js';
 import optionsRoutes from './routes/options.js';
+import showsRoutes from './routes/shows.js';
+import publicShowsRoutes from './routes/public-shows.js';
 import { errorHandler } from './middleware/errorHandler.js';
 
 const app = new Koa();
@@ -63,6 +65,9 @@ app.use(publicRouter.allowedMethods());
 app.use(utilsRoutes.routes());
 app.use(protectedRoutes.routes());
 app.use(authRoutes.routes());
+app.use(showsRoutes.routes());
+app.use(showsRoutes.allowedMethods());
+app.use(publicShowsRoutes.routes());
 
 // Serve static files and handle SPA routing last
 app.use(serve(path.join(__dirname, '..', 'public')));

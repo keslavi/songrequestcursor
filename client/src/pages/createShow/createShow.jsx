@@ -4,7 +4,7 @@ import { toast } from "react-toastify";
 import { useNavigate } from "react-router-dom";
 import { Button, CircularProgress, Box, Typography } from "@mui/material";
 import { store } from "store";
-import { getPlaceDetailsFromLink } from "@/utils/googleMaps";
+import { getPlaceDetailsFromLink } from "@/helpers";
 
 //prettier-ignore
 import {

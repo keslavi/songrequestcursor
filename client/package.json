@@ -4,6 +4,8 @@
   "version": "0.0.0",
   "type": "module",
   "scripts": {
+    "IMPORTANT": "to connect to mobile in dev, npm install -g local-ssl-proxy && local-ssl-proxy --source 3001 --target 3000",
+    "IMPORTANT2": "or npx local-ssl-proxy --source 3001 --target 3000",
     "startdev": "npm run dev",
     "start": "npm run dev",
     "dev": "vite --port 3000 --host",
@@ -52,6 +54,7 @@
     "zustand": "^4.5.5"
   },
   "devDependencies": {
+    "@googlemaps/js-api-loader": "^1.16.8",
     "@testing-library/dom": "^10.4.0",
     "@testing-library/jest-dom": "^6.6.3",
     "@testing-library/react": "^16.3.0",
