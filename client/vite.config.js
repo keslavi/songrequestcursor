@@ -7,6 +7,7 @@ export default defineConfig({
   server: {
     port: 3000,
     host: '0.0.0.0', // Allow external connections
+    // https: true, // Using local-ssl-proxy instead
     proxy: {
       //mock server should have the same endpoint as the eventual live endpoint
       //that way we can just remove "mock/" and switch to live endpoint.

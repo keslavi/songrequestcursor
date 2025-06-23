@@ -134,7 +134,9 @@ function App() {
       domain={domain}
       clientId={clientId}
       authorizationParams={{
-        redirect_uri: window.location.origin,
+        redirect_uri: window.location.protocol === 'https:' 
+          ? window.location.origin 
+          : window.location.origin.replace('http:', 'https:'),
         scope: "openid profile email phone address"
       }}
     >
