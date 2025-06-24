@@ -76,25 +76,30 @@ export const useAuthFlow = () => {
   // Smart authentication that chooses the best flow
   const smartLogin = useCallback(async (provider, onSuccess) => {
     try {
-      if (isMobile()) {
-        console.log('Mobile device detected - using redirect flow');
-        await loginWithRedirect({ connection: provider });
-        // User will be redirected to Auth0 and back to your app
-        // The callback component will handle the success
-      } else {
-        console.log('Desktop device detected - using popup flow');
-        await loginWithPopup({ connection: provider });
-        // User stays on same page, handle success immediately
-        const token = await getAccessTokenSilently();
-        if (onSuccess) {
-          onSuccess(token);
-        }
-      }
+      // Use redirect flow for both mobile and desktop (more reliable)
+      console.log('Using redirect flow for authentication');
+      console.log('Provider:', provider);
+      console.log('Auth0 configuration:', {
+        domain: import.meta.env.VITE_AUTH0_DOMAIN,
+        clientId: import.meta.env.VITE_AUTH0_CLIENT_ID,
+        scope: "openid profile email phone address offline_access"
+      });
+      
+      await loginWithRedirect({ 
+        connection: provider,
+        scope: "openid profile email phone address offline_access"
+      });
+      // User will be redirected to Auth0 and back to your app
+      // The callback component will handle the success
+      
+      // Note: onSuccess callback won't be called with redirect flow
+      // The callback component will handle the authentication success
+      console.log(`${provider} redirect authentication initiated`);
     } catch (error) {
       console.error(`${provider} login failed:`, error);
       throw error;
     }
-  }, [isMobile, loginWithPopup, loginWithRedirect, getAccessTokenSilently]);
+  }, [loginWithRedirect]);
 
   return {
     smartLogin,

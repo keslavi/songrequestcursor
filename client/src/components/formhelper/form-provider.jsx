@@ -5,7 +5,7 @@ const FormContext = createContext();
 
 export const FormProvider = ({ children, ...methods }) => {
   // Debug logging
-  console.log('FormProvider received methods:', methods);
+  // console.log('FormProvider received methods:', methods);
   
   // Handle both cases: when methods is the entire useForm result or individual props
   let control, formState, reset, register, handleSubmit, watch, setValue, getValues;
@@ -103,7 +103,7 @@ export const useFormContext = () => {
 
 // Enhanced hook with validation support
 export const useFormProvider = (options = {}) => {
-  console.log('useFormProvider called with options:', options);
+  // console.log('useFormProvider called with options:', options);
   
   try {
     const formMethods = useForm({
@@ -116,9 +116,9 @@ export const useFormProvider = (options = {}) => {
     });
 
     // Debug logging
-    console.log('useFormProvider result:', formMethods);
-    console.log('useFormProvider control:', formMethods.control);
-    console.log('useFormProvider formState:', formMethods.formState);
+    // console.log('useFormProvider result:', formMethods);
+    // console.log('useFormProvider control:', formMethods.control);
+    // console.log('useFormProvider formState:', formMethods.formState);
     
     return formMethods;
   } catch (error) {

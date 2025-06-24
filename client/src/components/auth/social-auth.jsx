@@ -17,7 +17,23 @@ export const SocialAuth = () => {
            window.innerWidth <= 768;
   };
 
-  const onSocialLogin = async (provider) => {
+  const onSocialLogin = async (provider, event) => {
+    // Prevent form submission behavior and any potential parameter leakage
+    if (event) {
+      event.preventDefault();
+      event.stopPropagation();
+      // Only call stopImmediatePropagation if it exists
+      if (typeof event.stopImmediatePropagation === 'function') {
+        event.stopImmediatePropagation();
+      }
+    }
+    
+    // Clear any potential form state that might be in the URL or global state
+    const currentUrl = new URL(window.location.href);
+    currentUrl.searchParams.delete('is_submitting');
+    currentUrl.searchParams.delete('sso');
+    window.history.replaceState({}, '', currentUrl.toString());
+    
     if (!isAuth0Configured) {
       console.error('Auth0 not configured. Please set VITE_AUTH0_DOMAIN and VITE_AUTH0_CLIENT_ID environment variables.');
       return;
@@ -25,11 +41,12 @@ export const SocialAuth = () => {
 
     try {
       console.log(`Starting ${provider} authentication...`);
+      console.log('Current URL before auth:', window.location.href);
       
-      // For desktop, use popup flow
-      // For mobile, use redirect flow (handled by smartLogin)
+      // Use redirect flow for all devices (more reliable)
       await smartLogin(provider, async (token) => {
-        // This callback only runs for desktop popup flow
+        // This callback won't be called with redirect flow
+        // It's kept for potential future popup implementation
         console.log(`${provider} popup authentication successful`);
         await socialAuth('auth0', token, user);
         
@@ -44,8 +61,9 @@ export const SocialAuth = () => {
         console.log('========================');
       });
       
-      // For mobile redirect flow, the callback component will handle success
-      console.log(`${provider} authentication initiated`);
+      // With redirect flow, user will be redirected to Auth0 and back
+      // The callback component will handle the success
+      console.log(`${provider} redirect authentication initiated`);
     } catch (error) {
       console.error(`${provider} login failed:`, error);
       // You could show a toast notification here
@@ -61,7 +79,8 @@ export const SocialAuth = () => {
     <Box sx={{ width: '100%', mt: 2 }}>
       <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
         <button
-          onClick={() => onSocialLogin('google-oauth2')}
+          type="button"
+          onClick={(event) => onSocialLogin('google-oauth2', event)}
           style={{
             width: '100%',
             padding: '10px',
@@ -80,7 +99,8 @@ export const SocialAuth = () => {
         </button>
 
         <button
-          onClick={() => onSocialLogin('facebook')}
+          type="button"
+          onClick={(event) => onSocialLogin('facebook', event)}
           style={{
             width: '100%',
             padding: '10px',
@@ -100,7 +120,8 @@ export const SocialAuth = () => {
         </button>
 
         <button
-          onClick={() => onSocialLogin('apple')}
+          type="button"
+          onClick={(event) => onSocialLogin('apple', event)}
           style={{
             width: '100%',
             padding: '10px',

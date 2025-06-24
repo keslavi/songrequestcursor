@@ -10,10 +10,9 @@ export const App = (props) => {
   const { menu } = props;
   const checkAuth = store.use.checkAuth();
   
-  //const callbackUrl = window.location.origin + '/auth/callback';
-  // Callback URL for redirect flow (mobile devices)
-  // Use the HTTPS proxy URL since that's what we're accessing from mobile
-  const callbackUrl = 'https://192.168.0.106:3001/auth/callback';
+  // Use static callback URL to avoid IP address changes
+  // You can change this to your preferred IP address
+  const callbackUrl = `${window.location.origin}/auth/callback`;//'http://localhost:3000/auth/callback';
   
   // Check if we're in development mode
   const isDevelopment = import.meta.env.DEV;
@@ -23,8 +22,9 @@ export const App = (props) => {
   console.log("clientId:", import.meta.env.VITE_AUTH0_CLIENT_ID);
   console.log("window.location.origin:", window.location.origin);
   console.log("window.location.href:", window.location.href);
-  console.log("callbackUrl for mobile redirects:", callbackUrl);
+  console.log("callbackUrl:", callbackUrl);
   console.log("isDevelopment:", isDevelopment);
+  console.log("Current IP detected:", window.location.hostname);
   console.log("Auth0 configured for social auth with proper redirect handling");
   console.log("=========================");
 
@@ -39,11 +39,13 @@ export const App = (props) => {
       clientId={import.meta.env.VITE_AUTH0_CLIENT_ID}
       authorizationParams={{
         redirect_uri: callbackUrl,
-        scope: "openid profile email phone address"
+        scope: "openid profile email phone address offline_access"
       }}
       // Allow Auth0 to handle redirects properly for social auth
       useRefreshTokens={true}
       cacheLocation="localstorage"
+      // Add configuration to help with COOP policy issues
+      skipRedirectCallback={window.location.pathname === '/auth/callback'}
     >
       <Header menu={menu} />
       <ContainerFullWidth>

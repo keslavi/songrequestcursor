@@ -203,7 +203,8 @@ export const Home = () => {
           <GoogleMaps 
             shows={nearbyShows} 
             center={mapCenter}
-            zoom={10}
+            zoom={8}
+            autoFitBounds={false}
           />
         </Col>
         
