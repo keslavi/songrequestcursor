@@ -15,19 +15,24 @@ export const Datepicker = (props) => {
 
   const {field,fieldState:{error}}=useController(props);
 
+  // Determine if this is a datetime picker or date picker
+  const isDateTime = props.datetimepicker || false;
+  const inputType = isDateTime ? "datetime-local" : "date";
+  const format = isDateTime ? "YYYY-MM-DDTHH:mm" : "YYYY-MM-DD";
+
   const attributes = { inputProps: {} };
   if (!isEmpty(props.min)){
-    attributes.inputProps.min=dayjs(props.min).format('YYYY-MM-DD');
+    attributes.inputProps.min = dayjs(props.min).format(format);
   }
   if (!isEmpty(props.max)){
-    attributes.inputPorts.max=dayjs(props.max).format('YYYY-MM-DD');
+    attributes.inputProps.max = dayjs(props.max).format(format);
   }
 
   return (
     <ColPadded {...colProps(props)}>
       <MuiTextField
         {...cleanParentProps(props)}
-        type="date"
+        type={inputType}
         id={field.name}
         label={props.label}
         inputRef={field.ref}

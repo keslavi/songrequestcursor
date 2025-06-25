@@ -52,7 +52,7 @@ export const Register = () => {
   return (
     <>
       <Row>
-        <Col xs={12}>
+        <Col size={12}>
           <h2>Register</h2>
         </Col>
       </Row>

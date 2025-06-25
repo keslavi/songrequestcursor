@@ -43,7 +43,7 @@ export const SelectAutocomplete = (props) => {
         popupIcon={<KeyboardArrowDown />}
         renderInput={(params) => {
           return (
-            <Box xs={{position:'relative'}}>
+            <Box sx={{position:'relative'}}>
               <MuiTextField
                 {...params}
                 label={props.label}

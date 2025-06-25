@@ -6,7 +6,11 @@ const showSchema = new mongoose.Schema({
     required: true,
     trim: true
   },
-  date: {
+  dateFrom: {
+    type: Date,
+    required: true
+  },
+  dateTo: {
     type: Date,
     required: true
   },
@@ -71,7 +75,12 @@ const showSchema = new mongoose.Schema({
     ref: 'User',
     required: true
   },
-  performers: [{
+  performer: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'User',
+    required: true
+  },
+  additionalPerformers: [{
     type: mongoose.Schema.Types.ObjectId,
     ref: 'User'
   }],
@@ -95,7 +104,8 @@ const showSchema = new mongoose.Schema({
 });
 
 // Index for efficient querying
-showSchema.index({ date: 1, status: 1 });
+showSchema.index({ dateFrom: 1, status: 1 });
+showSchema.index({ dateTo: 1, status: 1 });
 showSchema.index({ createdBy: 1 });
 showSchema.index({ 'venue.location.coordinates': '2dsphere' });
 
@@ -107,17 +117,36 @@ showSchema.methods.isAcceptingRequests = function() {
   return true;
 };
 
+// Method to check if user has access to this show
+showSchema.methods.hasAccess = function(userId, userRole) {
+  // Admins have access to all shows
+  if (userRole === 'admin') return true;
+  
+  // Creator has access
+  if (this.createdBy && this.createdBy.toString() === userId.toString()) return true;
+  
+  // Main performer has access
+  if (this.performer && this.performer.toString() === userId.toString()) return true;
+  
+  // Additional performers have access
+  if (this.additionalPerformers && this.additionalPerformers.some(p => p.toString() === userId.toString())) return true;
+  
+  return false;
+};
+
 // Method to get public show data
 showSchema.methods.toPublic = function() {
   return {
     id: this._id,
     name: this.name,
-    date: this.date,
+    dateFrom: this.dateFrom,
+    dateTo: this.dateTo,
     location: this.location,
     description: this.description,
     status: this.status,
     venue: this.venue,
-    performers: this.performers,
+    performer: this.performer,
+    additionalPerformers: this.additionalPerformers,
     settings: {
       allowRequests: this.settings.allowRequests,
       maxRequestsPerUser: this.settings.maxRequestsPerUser,

@@ -10,7 +10,7 @@ export const ProfileMl = (props) => {
   return (
     <>
       <Row>
-        <Col xs={12}>
+        <Col size={12}>
           Now we put whatever controls and html needed for the ml profile
         </Col>
       </Row>

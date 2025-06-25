@@ -11,18 +11,35 @@ const requestSchema = new mongoose.Schema({
     ref: 'User',
     required: true
   },
-  song: {
-    title: {
+  songs: [{
+    songId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'Song'
+    },
+    songname: {
       type: String,
       required: true,
       trim: true
     },
     artist: {
       type: String,
-      required: true,
       trim: true
     },
-    notes: String
+    isCustom: {
+      type: Boolean,
+      default: false
+    }
+  }],
+  dedication: {
+    type: String,
+    trim: true
+  },
+  tipAmount: {
+    type: Number,
+    required: true,
+    min: 1,
+    max: 100,
+    default: 5
   },
   status: {
     type: String,
@@ -34,10 +51,6 @@ const requestSchema = new mongoose.Schema({
     default: 0
   },
   tip: {
-    amount: {
-      type: Number,
-      default: 0
-    },
     status: {
       type: String,
       enum: ['pending', 'completed', 'refunded'],
@@ -59,21 +72,51 @@ requestSchema.methods.canBeModified = function() {
   return ['pending', 'approved'].includes(this.status);
 };
 
+// Method to get songs display text
+requestSchema.methods.getSongsDisplayText = function() {
+  return this.songs.map(song => {
+    if (song.artist) {
+      const artistInitials = song.artist
+        .split(' ')
+        .map(word => word.charAt(0).toUpperCase())
+        .join('');
+      return `${song.songname} (${artistInitials})`;
+    }
+    return song.songname;
+  }).join(', ');
+};
+
+// Method to get venmo note text
+requestSchema.methods.getVenmoNote = function() {
+  const songsText = this.getSongsDisplayText();
+  const dedicationText = this.dedication ? `, DEDICATION-${this.dedication}` : '';
+  return `7169:confirm…$${songsText}${dedicationText}`;
+};
+
+// Method to get venmo URL
+requestSchema.methods.getVenmoUrl = function() {
+  const note = encodeURIComponent(this.getVenmoNote());
+  return `https://venmo.com/GoEvenSteven?txn=pay&amount=${this.tipAmount}&note=${note}`;
+};
+
 // Method to get public request data
 requestSchema.methods.toPublic = function() {
   return {
     id: this._id,
     show: this.show,
     user: this.user,
-    song: this.song,
+    songs: this.songs,
+    dedication: this.dedication,
+    tipAmount: this.tipAmount,
     status: this.status,
     priority: this.priority,
     tip: {
-      amount: this.tip.amount,
       status: this.tip.status
     },
     performerNotes: this.performerNotes,
     completedAt: this.completedAt,
+    songsDisplayText: this.getSongsDisplayText(),
+    venmoUrl: this.getVenmoUrl(),
     createdAt: this.createdAt,
     updatedAt: this.updatedAt
   };

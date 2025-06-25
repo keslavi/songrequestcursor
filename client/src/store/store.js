@@ -7,6 +7,7 @@ import task from "./slice/task-slice";
 import auth from "./slice/auth-slice";
 import show from "./slice/show-slice";
 import nearbyShows from "./slice/nearby-shows-slice";
+import user from "./slice/user-slice";
 
 export const useStoreDirectly = create(devtools((...a) => ({
     ...api(...a),//http request counter
@@ -15,6 +16,7 @@ export const useStoreDirectly = create(devtools((...a) => ({
     ...task(...a),
     ...show(...a),
     ...nearbyShows(...a),
+    ...user(...a),
   }))
 );
 

@@ -84,8 +84,11 @@ const Home = () => {
   }
 
   return (
-    <Container maxWidth="md" sx={{ mt: 4 }}>
-      <Typography variant="h4" component="h1" gutterBottom>
+    <Container maxWidth="lg" sx={{ mt: { xs: 2, sm: 4 }, px: { xs: 2, sm: 3 } }}>
+      <Typography variant="h4" component="h1" gutterBottom sx={{ 
+        fontSize: { xs: '1.75rem', sm: '2.125rem' },
+        textAlign: { xs: 'center', sm: 'left' }
+      }}>
         Shows Near You
       </Typography>
       
@@ -97,7 +100,7 @@ const Home = () => {
 
       <Grid container spacing={3}>
         {shows.map((show) => (
-          <Grid item xs={12} sm={6} md={4} key={show._id}>
+          <Grid item xs={12} sm={6} lg={4} key={show._id}>
             <Card>
               <CardContent>
                 <Typography variant="h6" gutterBottom>
@@ -105,14 +108,14 @@ const Home = () => {
                 </Typography>
                 
                 <Box sx={{ display: 'flex', alignItems: 'center', mb: 1 }}>
-                  <LocationOn sx={{ mr: 1, fontSize: 20 }} />
+                  <LocationOn sx={{ mr: 1, fontSize: { xs: 18, sm: 20 } }} />
                   <Typography variant="body2">
                     {show.venue.name}
                   </Typography>
                 </Box>
                 
                 <Box sx={{ display: 'flex', alignItems: 'center', mb: 2 }}>
-                  <CalendarToday sx={{ mr: 1, fontSize: 20 }} />
+                  <CalendarToday sx={{ mr: 1, fontSize: { xs: 18, sm: 20 } }} />
                   <Typography variant="body2">
                     {dayjs(show.dateTime).format('lll')}
                   </Typography>
@@ -137,6 +140,7 @@ const Home = () => {
                   variant="contained" 
                   fullWidth 
                   href={`/shows/${show._id}`}
+                  sx={{ fontSize: { xs: '0.875rem', sm: '1rem' } }}
                 >
                   View Details
                 </Button>

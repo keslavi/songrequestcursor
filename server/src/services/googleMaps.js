@@ -98,23 +98,33 @@ export const getPlaceDetailsFromLink = async (mapsLink) => {
     const cleanUrl = mapsLink.split('https://')[1];
     const properUrl = cleanUrl ? `https://${cleanUrl}` : mapsLink;
 
-    // If it's a shortened URL, resolve it first
+    // If it's a shortened URL or Google Share link, resolve it first
     let resolvedUrl = properUrl;
-    if (properUrl.includes('maps.app.goo.gl')) {
-      console.log('🔗 Detected shortened URL, resolving...');
-      resolvedUrl = await resolveShortUrl(properUrl);
+    if (properUrl.includes('maps.app.goo.gl') || properUrl.includes('share.google')) {
+      console.log('🔗 Detected shortened/Share URL, resolving...');
+      try {
+        resolvedUrl = await resolveShortUrl(properUrl);
+      } catch (resolveError) {
+        throw new Error('Could not resolve Google Maps link.');
+      }
     }
 
     // Extract basic info from resolved URL
     const placeInfo = extractPlaceInfo(resolvedUrl);
     if (!placeInfo) {
-      throw new Error('Could not extract place information from URL');
+      throw new Error('Could not extract place information from URL.');
     }
 
     console.log('📍 Extracted place info:', placeInfo);
 
     // Get address details from coordinates
-    const addressDetails = await getAddressFromCoordinates(placeInfo.location.lat, placeInfo.location.lng);
+    let addressDetails = null;
+    try {
+      addressDetails = await getAddressFromCoordinates(placeInfo.location.lat, placeInfo.location.lng);
+    } catch (geoError) {
+      // Log but do not crash
+      console.error('❌ Geocoding error:', geoError);
+    }
     console.log('📍 Address details:', addressDetails);
 
     return {
@@ -131,7 +141,7 @@ export const getPlaceDetailsFromLink = async (mapsLink) => {
       }
     };
   } catch (error) {
-    console.error('❌ Google Maps processing error:', error);
-    throw new Error(`Failed to process Google Maps link: ${error.message}`);
+    // Only throw with a clear, user-friendly message
+    throw new Error(error.message || 'Failed to process Google Maps link.');
   }
 }; 

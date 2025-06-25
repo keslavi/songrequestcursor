@@ -40,7 +40,9 @@ router.get('/place-details', async (ctx) => {
   const { url } = ctx.query;
 
   if (!url) {
-    ctx.throw(400, 'URL parameter is required');
+    ctx.status = 400;
+    ctx.body = { error: 'MissingURL', message: 'URL parameter is required' };
+    return;
   }
 
   try {
@@ -48,7 +50,11 @@ router.get('/place-details', async (ctx) => {
     ctx.body = placeDetails;
   } catch (error) {
     console.error('❌ Error getting place details:', error.message);
-    ctx.throw(500, error.message);
+    ctx.status = 400;
+    ctx.body = {
+      error: 'PlaceDetailsError',
+      message: error.message || 'Failed to process Google Maps link.'
+    };
   }
 });
 

@@ -28,6 +28,8 @@ import {
 export const CreateShow = () => {
   const user = store.use.user();
   const showCreate = store.use.showCreate();
+  const performers = store.use.performers();
+  const fetchPerformers = store.use.fetchPerformers();
   const navigate = useNavigate();
   const [loadingPlace, setLoadingPlace] = useState(false);
   const [isMobile, setIsMobile] = useState(false);
@@ -39,6 +41,11 @@ export const CreateShow = () => {
       navigate("/");
     }
   }, [user, navigate]);
+
+  // Fetch performers on component mount
+  useEffect(() => {
+    fetchPerformers();
+  }, [fetchPerformers]);
 
   // Detect mobile device
   useEffect(() => {
@@ -53,10 +60,20 @@ export const CreateShow = () => {
     resolver,
     defaultValues: {
       name: "",
-      date: new Date(),
+      dateFrom: (() => {
+        const today = new Date();
+        today.setHours(19, 0, 0, 0); // 7pm
+        return today;
+      })(),
+      dateTo: (() => {
+        const today = new Date();
+        today.setHours(22, 0, 0, 0); // 10pm (3 hours later)
+        return today;
+      })(),
       location: "",
       description: "",
       status: "draft",
+      additionalPerformers: [],
       venue: {
         name: "",
         phone: "",
@@ -83,6 +100,17 @@ export const CreateShow = () => {
 
   // Watch the mapsLink field for changes
   const mapsLink = watch('venue.location.mapsLink');
+  // Watch the dateFrom field for changes
+  const dateFrom = watch('dateFrom');
+
+  // Effect to handle dateFrom changes - adjust dateTo to be 3 hours later
+  useEffect(() => {
+    if (dateFrom) {
+      const newDateTo = new Date(dateFrom);
+      newDateTo.setHours(newDateTo.getHours() + 3);
+      setValue('dateTo', newDateTo);
+    }
+  }, [dateFrom, setValue]);
 
   // Effect to handle mapsLink changes
   useEffect(() => {
@@ -219,10 +247,12 @@ export const CreateShow = () => {
       // Transform form data to match server API
       const showData = {
         name: values.name,
-        date: values.date.toISOString(), // Convert Date to ISO string
+        dateFrom: values.dateFrom.toISOString(), // Convert Date to ISO string
+        dateTo: values.dateTo.toISOString(), // Convert Date to ISO string
         location: values.location,
         description: values.description || "",
         status: values.status,
+        additionalPerformers: values.additionalPerformers || [],
         venue: values.venue, // Include venue data
         settings: {
           allowRequests: values.settings.allowRequests,
@@ -255,7 +285,7 @@ export const CreateShow = () => {
   return (
     <>
       <Row>
-        <Col xs={12}>
+        <Col size={{xs:12}}>
           <h2>Create Show</h2>
         </Col>
       </Row>
@@ -266,56 +296,9 @@ export const CreateShow = () => {
           />
           <div className="hidden">
             <Row>
-              <Input name="id" />
+              {/* <Input name="id" /> */}
             </Row>
           </div>
-          {/* Show Details Section */}
-          <Fieldset legend="Show Details">
-            <Row>
-              <Input
-                size={{ xs: 12, xm: 6 }}
-                name="name"
-                label="Show Name"
-              />
-              <Input
-                size={{ xs: 12, xm: 6 }}
-                name="location"
-                label="Location"
-              />
-            </Row>
-            <Row>
-              <Input
-                size={{ xs: 4 }}
-                datepicker
-                name="date"
-                label="Show Date & Time"
-              />
-            </Row>
-            <Row>
-              <Input size={{ xs: 12 }}
-                name="description"
-                label="Description"
-                textarea
-              />
-            </Row>
-          </Fieldset>
-
-          <br />
-          <Fieldset>
-            <Row>
-              <Input
-                name="status"
-                label="Status"
-                options={[
-                  { key: "draft", text: "Draft" },
-                  { key: "published", text: "Published" },
-                  { key: "cancelled", text: "Cancelled" }
-                ]}
-                info="Draft shows are not visible to the public"
-              />
-            </Row>
-          </Fieldset>
-
           {/* Venue Information Section */}
           <Fieldset>
             <Row>
@@ -373,7 +356,69 @@ export const CreateShow = () => {
                 </Col>
               </Row>
             )}
+          </Fieldset>          
+          {/* Show Details Section */}
+          <Fieldset legend="Show Details">
+          <Row>
+              <Input
+                name="status"
+                label="Status"
+                size={{ xs: 12, xm: 6 }}
+                options={[
+                  { key: "draft", text: "Draft" },
+                  { key: "published", text: "Published" },
+                  { key: "cancelled", text: "Cancelled" }
+                ]}
+                info="Draft shows are not visible to the public"
+              />
+            </Row>
 
+            <Row>
+              <Input
+                size={{ xs: 12, xm: 6 }}
+                name="name"
+                label="Show Name"
+              />
+              <Input
+                size={{ xs: 12, xm: 6 }}
+                name="location"
+                label="Location"
+              />
+            </Row>
+            <Row>
+              <Input
+                size={{ xs: 12, xm: 6 }}
+                datetimepicker
+                name="dateFrom"
+                label="Show Start Date & Time"
+              />
+              <Input
+                size={{ xs: 12, xm: 6 }}
+                datetimepicker
+                name="dateTo"
+                label="Show End Date & Time"
+              />
+            </Row>
+            <Row>
+              <Input size={{ xs: 12 }}
+                name="description"
+                label="Description"
+                textarea
+              />
+            </Row>
+            <Row>
+              <Input
+                size={{ xs: 12 }}
+                name="additionalPerformers"
+                label="Additional Performers"
+                optionsMulti={performers}
+                info="Select additional performers for this show (optional)"
+              />
+            </Row>
+          </Fieldset>
+
+          <br />
+          <Fieldset>
             <Row>
               <Input
                 size={{ xs: 12, xm: 6 }}
@@ -409,8 +454,10 @@ export const CreateShow = () => {
                 name="venue.address.zip"
                 label="ZIP Code"
               />
-            </Row>
+            </Row>            
           </Fieldset>
+
+
 
 
           <br />
@@ -429,7 +476,8 @@ export const CreateShow = () => {
             </Row>
             <Row>
               <Input
-                datepicker
+                size={{ xs: 12, xm: 6 }}
+                datetimepicker
                 name="settings.requestDeadline"
                 label="Request Deadline"
                 info="When should requests close? (optional)"
@@ -438,6 +486,7 @@ export const CreateShow = () => {
           </Fieldset>
         </form>
       </FormProvider>
+      <br/><br/>
       {/* <TextareaDebug value={{ user }} /> */}
     </>
   );

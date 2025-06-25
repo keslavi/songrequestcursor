@@ -409,7 +409,7 @@ const GoogleMaps = ({ shows = [], center = { lat: 40.7128, lng: -74.0060 }, zoom
   };
 
   return (
-    <Box sx={{ width: '100%', height: '400px', position: 'relative' }}>
+    <Box sx={{ width: '100%', height: { xs: '300px', sm: '400px' }, position: 'relative' }}>
       {/* Always render the map container */}
       <div 
         ref={mapRef} 
@@ -419,33 +419,9 @@ const GoogleMaps = ({ shows = [], center = { lat: 40.7128, lng: -74.0060 }, zoom
           border: '2px solid #1976d2',
           borderRadius: '4px',
           backgroundColor: '#f5f5f5', // Light gray background to see the container
-          minHeight: '400px'
+          minHeight: '300px'
         }} 
       />
-      
-      {/* Debug info */}
-      {process.env.NODE_ENV === 'development' && (
-        <Box 
-          sx={{ 
-            position: 'absolute',
-            top: 8,
-            left: 8,
-            bgcolor: 'rgba(0,0,0,0.8)',
-            color: 'white',
-            p: 1,
-            borderRadius: 1,
-            fontSize: '12px',
-            zIndex: 1001,
-            fontFamily: 'monospace'
-          }}
-        >
-          Map: {map ? '✅ Loaded' : '⏳ Loading'} | 
-          Shows: {shows.length} | 
-          Markers: {markers.length} |
-          API Key: {import.meta.env.VITE_GOOGLE_MAPS_API_KEY ? '✅' : '❌'} |
-          Container: {mapRef.current ? '✅' : '❌'}
-        </Box>
-      )}
       
       {/* Show API key error as overlay */}
       {!import.meta.env.VITE_GOOGLE_MAPS_API_KEY && (
@@ -558,9 +534,10 @@ const GoogleMaps = ({ shows = [], center = { lat: 40.7128, lng: -74.0060 }, zoom
         <Card 
           sx={{ 
             position: 'absolute', 
-            top: 16, 
-            right: 16, 
-            maxWidth: 350,
+            top: { xs: 8, sm: 16 }, 
+            right: { xs: 8, sm: 16 },
+            left: { xs: 8, sm: 'auto' },
+            maxWidth: { xs: 'calc(100% - 16px)', sm: 350 },
             zIndex: 1000,
             boxShadow: 3
           }}
@@ -571,11 +548,6 @@ const GoogleMaps = ({ shows = [], center = { lat: 40.7128, lng: -74.0060 }, zoom
             </Typography>
             
             <Box sx={{ mb: 2 }}>
-              <Typography variant="body2" color="text.secondary" sx={{ display: 'flex', alignItems: 'center', mb: 1 }}>
-                <Person sx={{ mr: 1, fontSize: 16 }} />
-                {selectedShow.performers?.[0]?.profile?.name || 'N/A'}
-              </Typography>
-              
               <Typography variant="body2" color="text.secondary" sx={{ display: 'flex', alignItems: 'center', mb: 1 }}>
                 <LocationOn sx={{ mr: 1, fontSize: 16 }} />
                 {selectedShow.venue?.name || 'N/A'}

@@ -103,7 +103,7 @@ export const Task = () => {
   return (
     <>
       <Row>
-        <Col xs={12}>
+        <Col size={12}>
           <h2>Task</h2>
         </Col>
       </Row>

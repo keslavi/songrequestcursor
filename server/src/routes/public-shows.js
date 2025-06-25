@@ -40,7 +40,8 @@ router.get('/nearby', async (ctx) => {
       dateFrom: { $gte: new Date() },
       status: 'published'
     })
-    .populate('performers', 'profile')
+    .populate('performer', 'profile')
+    .populate('additionalPerformers', 'profile')
     .sort({ dateFrom: 1 })
     .limit(50);
 
@@ -67,7 +68,9 @@ router.get('/nearby', async (ctx) => {
 // Debug endpoint to see all shows
 router.get('/debug/all', async (ctx) => {
   try {
-    const shows = await Show.find({}).populate('performers', 'profile');
+    const shows = await Show.find({})
+      .populate('performer', 'profile')
+      .populate('additionalPerformers', 'profile');
     ctx.body = {
       total: shows.length,
       shows: shows.map(show => ({
@@ -79,7 +82,9 @@ router.get('/debug/all', async (ctx) => {
         hasVenue: !!show.venue,
         hasCoordinates: !!show.venue?.location?.coordinates,
         coordinates: show.venue?.location?.coordinates,
-        venue: show.venue
+        venue: show.venue,
+        performer: show.performer,
+        additionalPerformers: show.additionalPerformers
       }))
     };
   } catch (error) {
@@ -93,7 +98,8 @@ router.get('/debug/all', async (ctx) => {
 router.get('/:id', async (ctx) => {
   try {
     const show = await Show.findById(ctx.params.id)
-      .populate('performers', 'profile');
+      .populate('performer', 'profile')
+      .populate('additionalPerformers', 'profile');
 
     if (!show) {
       ctx.throw(404, 'Show not found');
@@ -103,11 +109,13 @@ router.get('/:id', async (ctx) => {
     ctx.body = {
       id: show._id,
       name: show.name,
-      date: show.date,
+      dateFrom: show.dateFrom,
+      dateTo: show.dateTo,
       description: show.description,
       status: show.status,
       venue: show.venue,
-      performers: show.performers,
+      performer: show.performer,
+      additionalPerformers: show.additionalPerformers,
       settings: {
         allowRequests: show.settings.allowRequests,
         maxRequestsPerUser: show.settings.maxRequestsPerUser,

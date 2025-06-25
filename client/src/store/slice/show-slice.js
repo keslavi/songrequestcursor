@@ -6,7 +6,7 @@ export const showSlice = (set, get) => ({
   show: {},
 
   showList: async () => {
-    const url = "api/shows/user/me";
+    const url = "shows/user/me";
     try {
       const res = await api.get(url);
       const shows = res.data;
@@ -17,7 +17,7 @@ export const showSlice = (set, get) => ({
   },
 
   showRetrieve: async (id) => {
-    const url = `api/shows/${id}/details`;
+    const url = `shows/${id}/details`;
     try {
       const res = await api.get(url);
       const show = res.data;
@@ -28,7 +28,7 @@ export const showSlice = (set, get) => ({
   },
 
   showCreate: async (showData) => {
-    const url = "api/shows";
+    const url = "shows";
     try {
       const res = await api.post(url, showData);
       const show = res.data;
@@ -46,7 +46,7 @@ export const showSlice = (set, get) => ({
   },
 
   showUpdate: async (id, showData) => {
-    const url = `api/shows/${id}`;
+    const url = `shows/${id}`;
     try {
       const res = await api.patch(url, showData);
       const show = res.data;
@@ -65,7 +65,7 @@ export const showSlice = (set, get) => ({
   },
 
   showDelete: async (id) => {
-    const url = `api/shows/${id}`;
+    const url = `shows/${id}`;
     try {
       await api.delete(url);
       set({ show: {} }, undefined, `${url}Delete`);

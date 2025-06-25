@@ -22,7 +22,8 @@ export const authenticateToken = async (ctx, next) => {
       return;
     }
 
-    ctx.user = user;
+    ctx.state = ctx.state || {};
+    ctx.state.user = user;
     await next();
   } catch (err) {
     ctx.status = 401;
@@ -31,7 +32,7 @@ export const authenticateToken = async (ctx, next) => {
 };
 
 export const requireAdmin = async (ctx, next) => {
-  if (ctx.user.role !== 'admin') {
+  if (ctx.state.user.role !== 'admin') {
     ctx.status = 403;
     ctx.body = { message: 'Admin access required' };
     return;
@@ -41,7 +42,7 @@ export const requireAdmin = async (ctx, next) => {
 
 export const requireRole = (roles) => {
   return async (ctx, next) => {
-    if (!roles.includes(ctx.user.role)) {
+    if (!roles.includes(ctx.state.user.role)) {
       ctx.status = 403;
       ctx.body = { message: 'Insufficient permissions' };
       return;

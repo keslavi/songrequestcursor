@@ -10,7 +10,7 @@ export const ProfilePb = (props) => {
   return (
     <>
       <Row>
-        <Col xs={12}>
+        <Col size={12}>
           anything we need for the pb profile... different fields. note the dropdown has different values
         </Col>
       </Row>

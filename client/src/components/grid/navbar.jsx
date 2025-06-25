@@ -6,7 +6,7 @@ export const Navbar = (props) => {
 
   return (
     <>
-      <Box xs={{ flexGrow: 1 }} style={style || {}}>
+      <Box sx={{ flexGrow: 1 }} style={style || {}}>
           <Typography /*variant="h6"*/ component="div" sx={{ flexGrow: 1 }}>
             {props.children}
           </Typography>

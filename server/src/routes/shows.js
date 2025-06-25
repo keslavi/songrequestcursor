@@ -9,8 +9,8 @@ const router = new Router({ prefix: '/api/shows' });
 // Get show by ID (public view)
 router.get('/:id', async (ctx) => {
   const show = await Show.findById(ctx.params.id)
+    .populate('createdBy', 'profile')
     .populate('performer', 'profile')
-    .populate('managers', 'profile')
     .populate('additionalPerformers', 'profile');
 
   if (!show) {
@@ -20,27 +20,22 @@ router.get('/:id', async (ctx) => {
   // Return public view of show
   ctx.body = {
     id: show._id,
-    performer: {
-      id: show.performer._id,
-      profile: show.performer.profile
-    },
+    createdBy: show.createdBy,
+    performer: show.performer,
+    additionalPerformers: show.additionalPerformers,
     venue: show.venue,
-    dateTime: show.dateTime,
-    duration: show.duration,
+    dateFrom: show.dateFrom,
+    dateTo: show.dateTo,
     status: show.status,
-    settings: {
-      requireTip: show.settings.requireTip,
-      suggestedTipAmount: show.settings.suggestedTipAmount,
-      allowExplicitSongs: show.settings.allowExplicitSongs
-    }
+    settings: show.settings
   };
 });
 
 // Get show details (authenticated)
 router.get('/:id/details', authenticateToken, async (ctx) => {
   const show = await Show.findById(ctx.params.id)
+    .populate('createdBy', 'profile')
     .populate('performer', 'profile')
-    .populate('managers', 'profile')
     .populate('additionalPerformers', 'profile');
 
   if (!show) {
@@ -63,13 +58,21 @@ router.post('/',
   validateRequest(schemas.show.create),
   async ctx => {
     const showData = ctx.request.body;
-    const user = await User.findById(ctx.state.user.id);
+    console.log('ctx.state.user:', ctx.state.user);
+    
+    const user = await User.findById(ctx.state.user._id);
+    if (!user) {
+      ctx.status = 404;
+      ctx.body = { message: 'User not found' };
+      return;
+    }
 
     // Create show
     const show = new Show({
       ...showData,
       createdBy: user._id,
-      performers: [user._id] // Add the creator as a performer
+      performer: user._id, // Set the creator as the main performer
+      additionalPerformers: showData.additionalPerformers || [] // Use from request body or empty array
     });
 
     await show.save();
@@ -77,7 +80,8 @@ router.post('/',
     // Return created show
     ctx.body = await Show.findById(show._id)
       .populate('createdBy', 'profile')
-      .populate('performers', 'profile');
+      .populate('performer', 'profile')
+      .populate('additionalPerformers', 'profile');
   }
 );
 
@@ -104,36 +108,14 @@ router.patch('/:id',
 
     const updates = ctx.request.body;
 
-    // Verify managers if being updated
-    if (updates.managers) {
-      const managers = await User.find({
-        _id: { $in: updates.managers },
-        role: 'manager'
-      });
-      if (managers.length !== updates.managers.length) {
-        ctx.throw(400, 'One or more managers are invalid');
-      }
-    }
-
-    // Verify additional performers if being updated
-    if (updates.additionalPerformers) {
-      const performers = await User.find({
-        _id: { $in: updates.additionalPerformers },
-        role: 'performer'
-      });
-      if (performers.length !== updates.additionalPerformers.length) {
-        ctx.throw(400, 'One or more additional performers are invalid');
-      }
-    }
-
     // Update show
     Object.assign(show, updates);
     await show.save();
 
     // Return updated show
     ctx.body = await Show.findById(show._id)
+      .populate('createdBy', 'profile')
       .populate('performer', 'profile')
-      .populate('managers', 'profile')
       .populate('additionalPerformers', 'profile');
   }
 );
@@ -147,13 +129,11 @@ router.get('/user/me',
     if (ctx.state.user.role === 'admin') {
       // Admins can see all shows
       query = {};
-    } else if (ctx.state.user.role === 'manager') {
-      // Managers can see shows where they are managers
-      query = { managers: ctx.state.user._id };
-    } else if (ctx.state.user.role === 'performer') {
-      // Performers can see shows where they are the main performer or additional performer
+    } else {
+      // Users can see shows they created, are the main performer, or are additional performers in
       query = {
         $or: [
+          { createdBy: ctx.state.user._id },
           { performer: ctx.state.user._id },
           { additionalPerformers: ctx.state.user._id }
         ]
@@ -161,10 +141,10 @@ router.get('/user/me',
     }
 
     const shows = await Show.find(query)
+      .populate('createdBy', 'profile')
       .populate('performer', 'profile')
-      .populate('managers', 'profile')
       .populate('additionalPerformers', 'profile')
-      .sort({ dateTime: -1 });
+      .sort({ dateFrom: -1 });
 
     ctx.body = shows;
   }

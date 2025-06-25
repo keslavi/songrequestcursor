@@ -41,6 +41,7 @@ export const Input = (props) => {
   const {
     checkbox,
     datepicker,
+    datetimepicker,
     options,
     optionsMulti,
     optionsRadio,
@@ -50,7 +51,7 @@ export const Input = (props) => {
     password,
   } = props;
 
-  const Ctl = datepicker
+  const Ctl = datepicker || datetimepicker
     ? Datepicker
     : checkbox
     ? Checkbox

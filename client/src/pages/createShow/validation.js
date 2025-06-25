@@ -7,10 +7,12 @@ export * from '@/helpers/form-validation/errorNotification';
 
 const schema = yup.object().shape({
   name: yup.string().required("Show name is required"),
-  date: yup.date().required("Show date is required").min(new Date(), "Show date must be in the future"),
+  dateFrom: yup.date().required("Show start date is required").min(new Date(), "Show start date must be in the future"),
+  dateTo: yup.date().required("Show end date is required").min(new Date(), "Show end date must be in the future"),
   location: yup.string().required("Location is required"),
   description: yup.string().optional(),
   status: yup.string().oneOf(['draft', 'published', 'cancelled'], "Invalid status").required("Status is required"),
+  additionalPerformers: yup.array().of(yup.string()).optional(),
   venue: yup.object().shape({
     name: yup.string().optional(),
     phone: yup.string().optional(),
@@ -31,6 +33,11 @@ const schema = yup.object().shape({
     maxRequestsPerUser: yup.number().min(1, "Must allow at least 1 request per user").max(10, "Cannot allow more than 10 requests per user").required("Max requests per user is required"),
     requestDeadline: yup.date().nullable().optional()
   })
+}).test('date-range', 'End date must be after start date', function(value) {
+  if (value.dateFrom && value.dateTo) {
+    return value.dateTo > value.dateFrom;
+  }
+  return true;
 });
 
 export const resolver = yupResolver(schema); 

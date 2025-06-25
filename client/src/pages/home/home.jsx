@@ -147,30 +147,18 @@ export const Home = () => {
   return (
     <>
       <Row>
-        <Col xs={12}>
-          <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 3 }}>
-            <Typography variant="h4" component="h1">
+        <Col size={12}>
+          <Box sx={{ mb: 3 }}>
+            <Typography variant="h5" component="h1">
               Upcoming Shows Near You
             </Typography>
-            <Box sx={{ display: 'flex', gap: 1 }}>
-              <Tooltip title="Refresh shows">
-                <IconButton onClick={loadNearbyShows}>
-                  <Refresh />
-                </IconButton>
-              </Tooltip>
-              <Tooltip title="Use my location">
-                <IconButton onClick={handleLocationPermission}>
-                  <MyLocation />
-                </IconButton>
-              </Tooltip>
-            </Box>
           </Box>
         </Col>
       </Row>
 
       {!userLocation && (
         <Row>
-          <Col xs={12}>
+          <Col size={12}>
             <Alert severity="info" sx={{ mb: 3 }}>
               <Typography variant="body2">
                 Allow location access to see shows within 100 miles of your current location.
@@ -190,7 +178,7 @@ export const Home = () => {
 
       {userLocation && (
         <Row>
-          <Col xs={12}>
+          <Col size={12}>
             <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
               Showing shows within 100 miles of your location
             </Typography>
@@ -199,7 +187,7 @@ export const Home = () => {
       )}
 
       <Row>
-        <Col xs={12} md={8}>
+        <Col size={12}>
           <GoogleMaps 
             shows={nearbyShows} 
             center={mapCenter}
@@ -208,8 +196,8 @@ export const Home = () => {
           />
         </Col>
         
-        <Col xs={12} md={4}>
-          <Box sx={{ height: '400px', overflowY: 'auto' }}>
+        <Col size={12}>
+          <Box sx={{ height: { xs: 'auto', lg: '400px' }, overflowY: { xs: 'visible', lg: 'auto' } }}>
             {isEmpty(nearbyShows) ? (
               <Card>
                 <CardContent>
@@ -243,11 +231,6 @@ export const Home = () => {
 
                     <Box sx={{ mb: 2 }}>
                       <Typography variant="body2" color="text.secondary" sx={{ display: 'flex', alignItems: 'center', mb: 0.5 }}>
-                        <Person sx={{ mr: 1, fontSize: 16 }} />
-                        {show.performers?.[0]?.profile?.name || 'N/A'}
-                      </Typography>
-                      
-                      <Typography variant="body2" color="text.secondary" sx={{ display: 'flex', alignItems: 'center', mb: 0.5 }}>
                         <LocationOn sx={{ mr: 1, fontSize: 16 }} />
                         {show.venue?.name || 'N/A'}
                       </Typography>
@@ -274,6 +257,7 @@ export const Home = () => {
                             const [lng, lat] = show.venue.location.coordinates;
                             getDirections(lat, lng);
                           }}
+                          sx={{ fontSize: { xs: '0.75rem', sm: '0.875rem' } }}
                         >
                           Directions
                         </Button>
@@ -287,6 +271,7 @@ export const Home = () => {
                             const [lng, lat] = show.venue.location.coordinates;
                             openMaps(lat, lng, show.venue.name);
                           }}
+                          sx={{ fontSize: { xs: '0.75rem', sm: '0.875rem' } }}
                         >
                           Google Maps
                         </Button>
@@ -299,6 +284,7 @@ export const Home = () => {
                             const [lng, lat] = show.venue.location.coordinates;
                             openAppleMaps(lat, lng, show.venue.name);
                           }}
+                          sx={{ fontSize: { xs: '0.75rem', sm: '0.875rem' } }}
                         >
                           Apple Maps
                         </Button>
@@ -314,7 +300,7 @@ export const Home = () => {
 
       {!isAuthenticated && (
         <Row>
-          <Col xs={12}>
+          <Col size={12}>
             <Card sx={{ mt: 3 }}>
               <CardContent>
                 <Typography variant="h6" gutterBottom>
@@ -323,7 +309,7 @@ export const Home = () => {
                 <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
                   Create an account to request songs at shows, track your requests, and get notified about upcoming events.
                 </Typography>
-                <Box sx={{ display: 'flex', gap: 2 }}>
+                <Box sx={{ display: 'flex', gap: 2, flexDirection: { xs: 'column', sm: 'row' } }}>
                   <Button variant="contained" onClick={() => navigate('/signup')}>
                     Sign Up
                   </Button>
