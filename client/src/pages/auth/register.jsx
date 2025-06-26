@@ -24,10 +24,11 @@ export const Register = () => {
   const register = store.use.register();
   const isAuthenticated = store.use.isAuthenticated();
 
-  const frmMethods = useFormProvider({
+  // Get form methods for use outside the form
+  const formMethods = useFormProvider({
     resolver: resolverRegister,
   });
-  const { errors, handleSubmit } = frmMethods;
+  const { formState: { errors } } = formMethods;
 
   useEffect(() => {
     if (errors) {
@@ -57,42 +58,43 @@ export const Register = () => {
         </Col>
       </Row>
 
-      <FormProvider {...frmMethods}>
-        <form onSubmit={handleSubmit(onSubmit)}>
-          <Fieldset>
-            <Row>
-              <Input
-                size={{ xs: 12, xm: 7 }}
-                name="email"
-                label="Email"
-                type="email"
-              />
-            </Row>
-            <Row>
-              <Input
-                size={{ xs: 12, xm: 7 }}
-                name="password"
-                label="Password"
-                type="password"
-                password
-              />
-            </Row>
-            <Row>
-              <Input
-                size={{ xs: 12, xm: 7 }}
-                name="confirmPassword"
-                label="Confirm Password"
-                type="password"
-                password
-              />
-            </Row>
-            <div style={{ display: 'flex', justifyContent: 'center' }}>
-              <Button type="submit" variant="contained" color="primary">
-                Register
-              </Button>
-            </div>
-          </Fieldset>
-        </form>
+      <FormProvider 
+        onSubmit={onSubmit}
+        formMethods={formMethods}
+      >
+        <Fieldset>
+          <Row>
+            <Input
+              size={{ xs: 12, xm: 7 }}
+              name="email"
+              label="Email"
+              type="email"
+            />
+          </Row>
+          <Row>
+            <Input
+              size={{ xs: 12, xm: 7 }}
+              name="password"
+              label="Password"
+              type="password"
+              password
+            />
+          </Row>
+          <Row>
+            <Input
+              size={{ xs: 12, xm: 7 }}
+              name="confirmPassword"
+              label="Confirm Password"
+              type="password"
+              password
+            />
+          </Row>
+          <div style={{ display: 'flex', justifyContent: 'center' }}>
+            <Button type="submit" variant="contained" color="primary">
+              Register
+            </Button>
+          </div>
+        </Fieldset>
       </FormProvider>
     </>
   );

@@ -159,7 +159,6 @@ export const Formhelper = (props) => {
     control,
     formState: { errors },
     //getValues,
-    handleSubmit,
     reset,
     setValue,
     //watch,
@@ -190,16 +189,16 @@ export const Formhelper = (props) => {
         <li>allow for developer to look at tests visually</li>
         <li>tests are in formhelper/*.test.jsx</li>
       </ul>
-      <FormProvider {...methods}>
-        <form onSubmit={handleSubmit(onSubmitSuccess)}>
-          {/* don't install components in here, use childrenDefault() */}
-          {processChildren(children, attributes)}
-          <Row>
-            <Col>
-              <input name="btnSubmit" type="submit" value="Submit" />
-            </Col>
-          </Row>
-        </form>
+      <FormProvider 
+        onSubmit={onSubmitSuccess}
+      >
+        {/* don't install components in here, use childrenDefault() */}
+        {processChildren(children, attributes)}
+        <Row>
+          <Col>
+            <input name="btnSubmit" type="submit" value="Submit" />
+          </Col>
+        </Row>
       </FormProvider>
       <label>submitValues</label>
       <br />

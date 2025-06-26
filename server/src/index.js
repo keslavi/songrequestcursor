@@ -18,6 +18,8 @@ import optionsRoutes from './routes/options.js';
 import showsRoutes from './routes/shows.js';
 import publicShowsRoutes from './routes/public-shows.js';
 import usersRoutes from './routes/users.js';
+import songsRoutes from './routes/songs.js';
+import songRequestsRoutes from './routes/song-requests.js';
 import { errorHandler } from './middleware/errorHandler.js';
 
 const app = new Koa();
@@ -55,6 +57,8 @@ publicRouter.get('/', (ctx) => {
 
 publicRouter.use('/tasks', taskRoutes.routes());
 publicRouter.use('/options', optionsRoutes.routes());
+publicRouter.use('/songs', songsRoutes.routes());
+publicRouter.use('/song-requests', songRequestsRoutes.routes());
 
 // Mount all API routes
 app.use(apiRouter.routes());

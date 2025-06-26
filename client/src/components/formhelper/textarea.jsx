@@ -6,6 +6,7 @@ import {
   InputLabel,
   FormHelperText, 
   Link,
+  Box,
 } from "@mui/material";
 import { cleanParentProps, colProps } from "./helper";
 import { Info } from "./info";
@@ -29,27 +30,29 @@ export const Textarea = (props) => {
 
   return (
     <ColPadded {...colProps(props)}>
-      <InputLabel htmlFor={field.name}>{props.label}</InputLabel>
-      <TextareaAutosize
-        style={{width: "100%"}}
-        id={field.name}
-        name={field.name}
-        // minRows={3}
-        // maxRows={6}
-        ref={field.ref}
-        onBlur={(e) => {
-          field.onBlur(e.target.value);
-          onBlur(e);
-        }}
-        onChange={(e) => {
-          field.onChange(e.target.value);
-          onChange(e);
-        }}
-        {...valueProp}
-        {...{ error: !!error || undefined, helperText: error?.message }}
-        {...cleanParentProps(props)}
-      />
-      {props.info && <Info id={`${field.id}Info`} info={props.info} />}
+      <Box sx={{ position: 'relative' }}>
+        <InputLabel htmlFor={field.name}>{props.label}</InputLabel>
+        <TextareaAutosize
+          style={{width: "100%"}}
+          id={field.name}
+          name={field.name}
+          // minRows={3}
+          // maxRows={6}
+          ref={field.ref}
+          onBlur={(e) => {
+            field.onBlur(e.target.value);
+            onBlur(e);
+          }}
+          onChange={(e) => {
+            field.onChange(e.target.value);
+            onChange(e);
+          }}
+          {...valueProp}
+          {...{ error: !!error || undefined, helperText: error?.message }}
+          {...cleanParentProps(props)}
+        />
+        {props.info && <Info id={`${field.id}Info`} info={props.info} />}
+      </Box>
       {props.helperText && <FormHelperText error>{error?.message}</FormHelperText>}
     </ColPadded>
   );

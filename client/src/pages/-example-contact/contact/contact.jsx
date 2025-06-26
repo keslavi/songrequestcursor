@@ -2,7 +2,6 @@ import { useEffect } from "react";
 import { isEmpty } from "lodash";
 import { toast } from "react-toastify";
 import { useNavigate, /* NavLink,*/ useParams } from "react-router-dom";
-import { useForm } from "react-hook-form";
 import { store } from "../slice/store-zustand";
 
 import { ProfileMl } from "./profile-ml/profile-ml";
@@ -17,7 +16,7 @@ import {
   FormProvider,
 } from "components";
 
-import { resolver, errorNotification } from "./validation";
+import { resolver } from "./validation";
 
 export const Contact = () => {
   const { id } = useParams();
@@ -28,18 +27,12 @@ export const Contact = () => {
   const contactRetrieve = store.use.contactRetrieve();
   const contactUpsert = store.use.contactUpsert();
 
-  const frmMethods = useFormProvider({
+  // Get form methods for use outside the form
+  const formMethods = useFormProvider({
     resolver,
-    //mode:"onChange"
+    defaultValues: item,
   });
-  const { errors, handleSubmit, reset } = frmMethods;
-
-  useEffect(() => {
-    if (errors) {
-      errorNotification(errors);
-    }
-  }, [errors]);
-  // end React hook form and validation***********************
+  const { reset } = formMethods;
 
   useEffect(() => {
     contactRetrieve(id);
@@ -88,8 +81,10 @@ export const Contact = () => {
         </h4>
       </div>
       <br />
-      <FormProvider {...frmMethods}>
-      <form onSubmit={handleSubmit(onSubmit)}>
+      <FormProvider 
+        onSubmit={onSubmit}
+        formMethods={formMethods}
+      >
         <div className="hidden">
           <Row>
             <div className="hidden"> Col is INSIDE Input</div>
@@ -123,7 +118,6 @@ export const Contact = () => {
             <input type="button" onClick={() => onDelete()} value="Delete" />
           </Col>
         </Row>
-      </form>
       </FormProvider>
       <TextareaDebug value={{ item, option }} />
     </>

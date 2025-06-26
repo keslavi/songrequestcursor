@@ -6,6 +6,7 @@ import { SelectMulti } from "./select-multi";
 import { Select } from "./select";
 import { Radio } from "./radio";
 import { SelectAutocomplete } from "./select-autocomplete";
+import { SelectAutocompleteFreesolo } from "./select-autocomplete-freesolo";
 import { SelectCheckbox } from "./select-checkbox";
 import { Textarea } from "./textarea";
 import { TextField } from "./text-field";
@@ -49,6 +50,7 @@ export const Input = (props) => {
     select,
     textarea,
     password,
+    allowFreeText,
   } = props;
 
   const Ctl = datepicker || datetimepicker
@@ -56,9 +58,11 @@ export const Input = (props) => {
     : checkbox
     ? Checkbox
     : !isEmpty(options)
-    ? select
-      ? Select
-      : SelectAutocomplete
+    ? allowFreeText
+      ? SelectAutocompleteFreesolo
+      : select
+        ? Select
+        : SelectAutocomplete
     : !isEmpty(optionsMulti)
     ? SelectMulti
     : !isEmpty(optionsRadio)

@@ -35,9 +35,10 @@ export const Info = ({ id, info }) => {
   return (
     <div style={{
       position: 'absolute',
-      right: 10,
-      top: 8,
-      zIndex: 1
+      right: 0,
+      top: -1,
+      zIndex: 1,
+      pointerEvents: 'auto'
     }}>
       <HelpRoundedIcon
         sx={{ 

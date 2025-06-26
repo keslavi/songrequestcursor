@@ -28,7 +28,8 @@ const Login = () => {
   // Check for error parameters in URL
   const error = searchParams.get('error');
 
-  const frmMethods = useFormProvider({
+  // Get form methods for use outside the form
+  const formMethods = useFormProvider({
     resolver: resolverLogin,
     defaultValues: {
       email: "",
@@ -98,35 +99,36 @@ const Login = () => {
       {/* Social Auth outside of FormProvider to prevent form parameter leakage */}
       <SocialAuth />
       
-      <FormProvider {...frmMethods}>
-        <form onSubmit={onSubmit}>
-          <Fieldset>
-            <Row>
-              <Input
-                size={{ xs: 12, xm: 7 }}
-                name="email"
-                label="Email"
-                type="email"
-              />
-            </Row>
-            <Row>
-              <Input
-                size={{ xs: 12, xm: 7 }}
-                name="password"
-                label="Password"
-                type="password"
-                password
-              />
-            </Row>
-            <Row>
-              <Col className="text-center">
-                <Button type="submit" variant="contained" color="primary">
-                  Login
-                </Button>
-              </Col>
-            </Row>
-          </Fieldset>
-        </form>
+      <FormProvider 
+        onSubmit={onSubmit}
+        formMethods={formMethods}
+      >
+        <Fieldset>
+          <Row>
+            <Input
+              size={{ xs: 12, xm: 7 }}
+              name="email"
+              label="Email"
+              type="email"
+            />
+          </Row>
+          <Row>
+            <Input
+              size={{ xs: 12, xm: 7 }}
+              name="password"
+              label="Password"
+              type="password"
+              password
+            />
+          </Row>
+          <Row>
+            <Col className="text-center">
+              <Button type="submit" variant="contained" color="primary">
+                Login
+              </Button>
+            </Col>
+          </Row>
+        </Fieldset>
       </FormProvider>
     </>
   );

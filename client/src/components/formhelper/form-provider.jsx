@@ -1,46 +1,69 @@
-import { createContext, useContext, useMemo } from "react";
+import { createContext, useContext, useMemo, useEffect, useRef } from "react";
 import { useForm, useController as useRealController } from "react-hook-form";
+import { errorNotification } from "@/helpers/form-validation/errorNotification";
 
 const FormContext = createContext();
 
-export const FormProvider = ({ children, ...methods }) => {
-  // Debug logging
-  // console.log('FormProvider received methods:', methods);
-  
-  // Handle both cases: when methods is the entire useForm result or individual props
-  let control, formState, reset, register, handleSubmit, watch, setValue, getValues;
-  
-  // Check if methods is the entire useForm result (has formState property)
-  if (methods.formState) {
-    // This is the entire useForm result
-    control = methods.control;
-    formState = methods.formState;
-    reset = methods.reset;
-    register = methods.register;
-    handleSubmit = methods.handleSubmit;
-    watch = methods.watch;
-    setValue = methods.setValue;
-    getValues = methods.getValues;
-  } else {
-    // This is individual props
-    control = methods.control;
-    formState = methods.formState;
-    reset = methods.reset;
-    register = methods.register;
-    handleSubmit = methods.handleSubmit;
-    watch = methods.watch;
-    setValue = methods.setValue;
-    getValues = methods.getValues;
-  }
+// Global registry to store form methods
+const formMethodsRegistry = new Map();
 
-  // Validate that we have the required methods
-  if (!control) {
-    console.error('FormProvider: control is missing from methods:', methods);
-    throw new Error("FormProvider: 'control' is required but was not provided. Make sure you're passing the result of useFormProvider() or useForm() directly.");
+// Enhanced hook with validation support
+export const useFormProvider = (options = {}) => {
+  try {
+    const formMethods = useForm({
+      // Default values
+      defaultValues: options.defaultValues || {},
+      // Validation resolver (Yup, Zod, etc.)
+      resolver: options.resolver,
+      // All other useForm() options
+      ...options,
+    });
+    
+    // Register the form methods with a unique ID
+    const formId = useRef(Math.random().toString(36).substr(2, 9)).current;
+    formMethodsRegistry.set(formId, formMethods);
+    
+    // Add cleanup function to remove from registry when component unmounts
+    useEffect(() => {
+      return () => {
+        formMethodsRegistry.delete(formId);
+      };
+    }, [formId]);
+    
+    // Add the formId to the formMethods for later retrieval
+    formMethods._formId = formId;
+    
+    return formMethods;
+  } catch (error) {
+    console.error('Error in useFormProvider:', error);
+    throw error;
   }
+};
 
-  // Safely extract errors from formState
+export const FormProvider = ({ 
+  children, 
+  onSubmit, 
+  formProps = {}, 
+  formOptions = {},
+  formMethods: externalFormMethods,
+  ...rest 
+}) => {
+  // Use external form methods if provided, otherwise create new ones
+  const frmMethods = externalFormMethods || useForm({
+    defaultValues: formOptions.defaultValues || {},
+    resolver: formOptions.resolver,
+    ...formOptions,
+  });
+
+  const { control, formState, reset, register, handleSubmit, watch, setValue, getValues } = frmMethods;
   const errors = formState?.errors || {};
+
+  // Handle error notifications automatically
+  useEffect(() => {
+    if (errors && Object.keys(errors).length > 0) {
+      errorNotification(errors);
+    }
+  }, [errors]);
 
   // Memoized context value
   const value = useMemo(
@@ -53,13 +76,18 @@ export const FormProvider = ({ children, ...methods }) => {
       watch,
       setValue,
       getValues,
-      // Include original methods object for edge cases
-      formMethods: methods,
+      formMethods: frmMethods,
     }),
-    [control, errors, reset, register, handleSubmit, watch, setValue, getValues, methods]
+    [control, errors, reset, register, handleSubmit, watch, setValue, getValues, frmMethods]
   );
 
-  return <FormContext.Provider value={value}>{children}</FormContext.Provider>;
+  return (
+    <FormContext.Provider value={value}>
+      <form onSubmit={handleSubmit(onSubmit)} {...formProps}>
+        {children}
+      </form>
+    </FormContext.Provider>
+  );
 };
 
 export const useController = (props) => {
@@ -73,7 +101,6 @@ export const useController = (props) => {
   const control = props.control || ctx.control;
   const errors = props.errors || ctx.errors;
 
-  // If control is still null/undefined, throw an error
   if (!control) {
     throw new Error("Form control is not available. Make sure FormProvider is properly configured.");
   }
@@ -99,30 +126,4 @@ export const useFormContext = () => {
   const context = useContext(FormContext);
   if (!context) throw new Error("Missing FormProvider");
   return context;
-};
-
-// Enhanced hook with validation support
-export const useFormProvider = (options = {}) => {
-  // console.log('useFormProvider called with options:', options);
-  
-  try {
-    const formMethods = useForm({
-      // Default values
-      defaultValues: options.defaultValues || {},
-      // Validation resolver (Yup, Zod, etc.)
-      resolver: options.resolver,
-      // All other useForm() options
-      ...options,
-    });
-
-    // Debug logging
-    // console.log('useFormProvider result:', formMethods);
-    // console.log('useFormProvider control:', formMethods.control);
-    // console.log('useFormProvider formState:', formMethods.formState);
-    
-    return formMethods;
-  } catch (error) {
-    console.error('Error in useFormProvider:', error);
-    throw error;
-  }
 };

@@ -35,6 +35,7 @@ import AuthCallback from "./components/auth/auth-callback";
 import { store } from "@/store/store";
 import { CreateShow } from "./pages/createShow";
 import { ProtectedRoute } from "./components/auth/protected-route";
+import ShowDetail from "./pages/show-detail/show-detail";
 
 // Menu for unauthenticated users
 const unauthenticatedMenu = [
@@ -137,6 +138,10 @@ const router = createBrowserRouter(
                   <CreateShow />
                 </ProtectedRoute>
               ),
+            },
+            {
+              path: ":id",
+              element: <ShowDetail />,
             },
           ],
         },

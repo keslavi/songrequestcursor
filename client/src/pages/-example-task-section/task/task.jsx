@@ -2,7 +2,6 @@ import { useEffect } from "react";
 import { isEmpty } from "lodash";
 import { toast } from "react-toastify";
 import { useNavigate, /*NavLink,*/ useParams } from "react-router-dom";
-import { Button } from "@mui/material";
 import { store } from "store";
 
 //prettier-ignore
@@ -11,9 +10,8 @@ import {
   FormProvider,
   useFormProvider,
   Input,
-  NavSticky,
   Row,
-  TextareaDebug,
+  //TextareaDebug,  
   Fieldset,
   BtnContinueSave,
 } from "components";
@@ -21,7 +19,6 @@ import {
 //prettier-ignore
 import {
   resolver,
-  errorNotification
 } from "./validation";
 
 export const Task = () => {
@@ -37,18 +34,13 @@ export const Task = () => {
     taskRetrieve(id);
   }, []);
 
-  const frmMethods = useFormProvider({
+  // Get form methods for use outside the form
+  const formMethods = useFormProvider({
     resolver,
+    defaultValues: item,
     //mode:"onChange"
   });
-  const { errors, handleSubmit, reset } = frmMethods;
-
-  useEffect(() => {
-    if (errors) {
-      errorNotification(errors);
-    }
-  }, [errors]);
-  // end React hook form and validation***********************
+  const { reset } = formMethods;
 
   useEffect(() => {
     if (!isEmpty(item)) {
@@ -107,76 +99,63 @@ export const Task = () => {
           <h2>Task</h2>
         </Col>
       </Row>
-      <FormProvider {...frmMethods}>
-        <form onSubmit={handleSubmit(onSubmit)}>
-          <BtnContinueSave
-            onClickContinueSave={onClickContinueSave}
-          />
-          <div className="hidden">
-            <Row>
-              <div className="hidden"> Col is INSIDE Input</div>
-              <Input name="id" />
-            </Row>
-          </div>
-          <Fieldset>
-            <Row>
-              <div className="hidden"> Col is INSIDE Input</div>
-              <Input
-                size={{xs:6,xm:7}} //size={4} muiv6 Grid2 uses size
-                name="subject"
-                label="Subject"
-                info="header|body"
-                //info={<font color='red'>object support</font>}
-              />
-              <Input name="body" label="Body" />
-            </Row>
-            </Fieldset>            
-          <br />
-          <Fieldset>
-            <Row>
-              <Input
-                name="names"
-                label="Names"
-                optionscheckbox={
-                  option.task.status /*["steve","cindy", "riley", "whatever"]*/
-                }
-              />
-            </Row>
-
-            <Row>
-              <Input name="status" label="Status" options={option.task.status} info="header2|body2" />
-              {/* <Select name="status" label="Status" options={option.status} /> */}
-              <Input name="result" label="Result" options={option.task.result} />
-              <Input datepicker name="dfrom" label="From" />
-            </Row>
-          </Fieldset>
-          <br />
-          <Fieldset>
-            <Row>
-              <Input name="address.line1" label="address" />
-            </Row>
-            <Row>
-              <Input name="address.line2" />
-            </Row>
-            <Row>
-              <Input name="address.line3" />
-            </Row>
-          </Fieldset>
-          {/* <Row>
-            <Col>
-              <input type="submit" value="Submit" />
-              &nbsp;&nbsp;
-              <input type="button" onClick={() => onCancel()} value="Cancel" />
-              &nbsp;&nbsp;
-              <input type="button" onClick={() => onDelete()} value="Delete" />
-            </Col>
+      <FormProvider 
+        onSubmit={onSubmit}
+        formMethods={formMethods}
+      >
+        <BtnContinueSave
+          onClickContinueSave={onClickContinueSave}
+        />
+        <div className="hidden">
+          <Row>
+            <div className="hidden"> Col is INSIDE Input</div>
+            <Input name="id" />
           </Row>
-          <NavSticky>
-            <Button id="btnSave" type="submit" variant="contained">
-              Save
-            </Button>
-          </NavSticky> */}
-        </form>
+        </div>
+        <Fieldset>
+          <Row>
+            <div className="hidden"> Col is INSIDE Input</div>
+            <Input
+              //size={{xs:6,xm:7}} //size={4} muiv6 Grid2 uses size
+              name="subject"
+              label="Subject"
+              info="header|body"
+              //info={<font color='red'>object support</font>}
+            />
+            <Input name="body" label="Body" />
+          </Row>
+        </Fieldset>            
+        <br />
+        <Fieldset>
+          <Row>
+            <Input
+              name="names"
+              label="Names"
+              optionscheckbox={
+                option.task.status /*["steve","cindy", "riley", "whatever"]*/
+              }
+            />
+          </Row>
+
+          <Row>
+            <Input name="status" label="Status" options={option.task.status} info="header2|body2" />
+            {/* <Select name="status" label="Status" options={option.status} /> */}
+            <Input name="result" label="Result" options={option.task.result} />
+            <Input datepicker name="dfrom" label="From" />
+          </Row>
+        </Fieldset>
+        <br />
+        <Fieldset>
+          <Row>
+            <Input name="address.line1" label="address" />
+          </Row>
+          <Row>
+            <Input name="address.line2" />
+          </Row>
+          <Row>
+            <Input name="address.line3" />
+          </Row>
+        </Fieldset>
       </FormProvider>
       {/* <TextareaDebug value={{ item, option }} /> */}
     </>

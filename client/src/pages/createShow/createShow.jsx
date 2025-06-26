@@ -5,6 +5,7 @@ import { useNavigate } from "react-router-dom";
 import { Button, CircularProgress, Box, Typography } from "@mui/material";
 import { store } from "store";
 import { getPlaceDetailsFromLink } from "@/helpers";
+import dayjs from "dayjs";
 
 //prettier-ignore
 import {
@@ -34,6 +35,37 @@ export const CreateShow = () => {
   const [loadingPlace, setLoadingPlace] = useState(false);
   const [isMobile, setIsMobile] = useState(false);
 
+  // Initial form values
+  const initialFormValues = {
+    name: "",
+    dateFrom: dayjs().hour(19).minute(0).second(0).millisecond(0).format("YYYY-MM-DDTHH:mm"), // 7pm today
+    dateTo: dayjs().hour(22).minute(0).second(0).millisecond(0).format("YYYY-MM-DDTHH:mm"), // 10pm today
+    location: "",
+    description: "",
+    status: "draft",
+    additionalPerformers: [],
+    venue: {
+      name: "",
+      phone: "",
+      mapUrl: "",
+      address: {
+        street: "",
+        city: "",
+        state: "",
+        zip: ""
+      },
+      location: {
+        coordinates: [0, 0],
+        mapsLink: ""
+      }
+    },
+    settings: {
+      allowRequests: true,
+      maxRequestsPerUser: 3,
+      requestDeadline: null
+    }
+  };
+
   // Check if user has permission to create shows
   useEffect(() => {
     if (user && !['admin', 'performer', 'organizer'].includes(user.role)) {
@@ -56,47 +88,12 @@ export const CreateShow = () => {
     setIsMobile(checkMobile());
   }, []);
 
-  const frmMethods = useFormProvider({
+  // Get form methods for use outside the form
+  const formMethods = useFormProvider({
     resolver,
-    defaultValues: {
-      name: "",
-      dateFrom: (() => {
-        const today = new Date();
-        today.setHours(19, 0, 0, 0); // 7pm
-        return today;
-      })(),
-      dateTo: (() => {
-        const today = new Date();
-        today.setHours(22, 0, 0, 0); // 10pm (3 hours later)
-        return today;
-      })(),
-      location: "",
-      description: "",
-      status: "draft",
-      additionalPerformers: [],
-      venue: {
-        name: "",
-        phone: "",
-        mapUrl: "",
-        address: {
-          street: "",
-          city: "",
-          state: "",
-          zip: ""
-        },
-        location: {
-          coordinates: [0, 0],
-          mapsLink: ""
-        }
-      },
-      settings: {
-        allowRequests: true,
-        maxRequestsPerUser: 3,
-        requestDeadline: null
-      }
-    }
+    defaultValues: initialFormValues
   });
-  const { errors, handleSubmit, reset, watch, setValue } = frmMethods;
+  const { watch, setValue } = formMethods;
 
   // Watch the mapsLink field for changes
   const mapsLink = watch('venue.location.mapsLink');
@@ -106,8 +103,7 @@ export const CreateShow = () => {
   // Effect to handle dateFrom changes - adjust dateTo to be 3 hours later
   useEffect(() => {
     if (dateFrom) {
-      const newDateTo = new Date(dateFrom);
-      newDateTo.setHours(newDateTo.getHours() + 3);
+      const newDateTo = dayjs(dateFrom).add(3, 'hour').format("YYYY-MM-DDTHH:mm");
       setValue('dateTo', newDateTo);
     }
   }, [dateFrom, setValue]);
@@ -221,12 +217,6 @@ export const CreateShow = () => {
     }
   };
 
-  useEffect(() => {
-    if (errors) {
-      errorNotification(errors);
-    }
-  }, [errors]);
-
   // DO NOT SUBMIT HERE; it's done in BtnContinueSave
   const onClickContinueSave = (e) => {
     const id = e.currentTarget.id;
@@ -285,208 +275,198 @@ export const CreateShow = () => {
   return (
     <>
       <Row>
-        <Col size={{xs:12}}>
+        <Col size={{ xs: 12 }}>
           <h2>Create Show</h2>
         </Col>
       </Row>
-      <FormProvider {...frmMethods}>
-        <form onSubmit={handleSubmit(onSubmit)}>
-          <BtnContinueSave
-            onClickContinueSave={onClickContinueSave}
-          />
-          <div className="hidden">
-            <Row>
-              {/* <Input name="id" /> */}
-            </Row>
-          </div>
-          {/* Venue Information Section */}
-          <Fieldset>
+      <FormProvider
+        onSubmit={onSubmit}
+        formMethods={formMethods}
+      >
+        <BtnContinueSave
+          onClickContinueSave={onClickContinueSave}
+        />
+        {/* Venue Information Section */}
+        <Fieldset>
+          <Row>
+            <Col size={{ xs: 12 }}>
+              <h3>Venue Information</h3>
+            </Col>
+          </Row>
+          <Row>
+            <Input size={{ xs: 12 }}
+              name="venue.location.mapsLink"
+              label="Google Maps Link"
+              placeholder="Paste the venue's Google Maps share link here"
+              info="Right-click the venue on Google Maps and select 'Share' to get the link"
+              InputProps={{
+                endAdornment: loadingPlace && (
+                  <CircularProgress color="inherit" size={20} />
+                )
+              }}
+            />
+          </Row>
+
+          {/* Mobile Google Maps Integration */}
+          {isMobile && (
             <Row>
               <Col size={{ xs: 12 }}>
-                <h3>Venue Information</h3>
+                <Box sx={{ mt: 2, mb: 2, p: 2, border: '1px solid #ddd', borderRadius: 1 }}>
+                  <Typography variant="subtitle2" gutterBottom>
+                    📱 Mobile Google Maps Integration
+                  </Typography>
+                  <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
+                    Use your device's Google Maps app to find and share venue locations
+                  </Typography>
+                  <Box sx={{ display: 'flex', gap: 1, flexWrap: 'wrap' }}>
+                    <Button
+                      variant="outlined"
+                      size="small"
+                      onClick={openGoogleMapsForLocation}
+                      sx={{ fontSize: '0.8rem' }}
+                    >
+                      📍 Use Current Location
+                    </Button>
+                    <Button
+                      variant="outlined"
+                      size="small"
+                      onClick={openGoogleMapsForSearch}
+                      sx={{ fontSize: '0.8rem' }}
+                    >
+                      🔍 Search for Venue
+                    </Button>
+                  </Box>
+                  <Typography variant="caption" color="text.secondary" sx={{ mt: 1, display: 'block' }}>
+                    After opening Google Maps, search for your venue, tap the share button, and paste the link above.
+                  </Typography>
+                </Box>
               </Col>
             </Row>
-            <Row>
-              <Input size={{ xs: 12 }}
-                name="venue.location.mapsLink"
-                label="Google Maps Link"
-                placeholder="Paste the venue's Google Maps share link here"
-                info="Right-click the venue on Google Maps and select 'Share' to get the link"
-                InputProps={{
-                  endAdornment: loadingPlace && (
-                    <CircularProgress color="inherit" size={20} />
-                  )
-                }}
-              />
-            </Row>
-
-            {/* Mobile Google Maps Integration */}
-            {isMobile && (
-              <Row>
-                <Col size={{ xs: 12 }}>
-                  <Box sx={{ mt: 2, mb: 2, p: 2, border: '1px solid #ddd', borderRadius: 1 }}>
-                    <Typography variant="subtitle2" gutterBottom>
-                      📱 Mobile Google Maps Integration
-                    </Typography>
-                    <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
-                      Use your device's Google Maps app to find and share venue locations
-                    </Typography>
-                    <Box sx={{ display: 'flex', gap: 1, flexWrap: 'wrap' }}>
-                      <Button
-                        variant="outlined"
-                        size="small"
-                        onClick={openGoogleMapsForLocation}
-                        sx={{ fontSize: '0.8rem' }}
-                      >
-                        📍 Use Current Location
-                      </Button>
-                      <Button
-                        variant="outlined"
-                        size="small"
-                        onClick={openGoogleMapsForSearch}
-                        sx={{ fontSize: '0.8rem' }}
-                      >
-                        🔍 Search for Venue
-                      </Button>
-                    </Box>
-                    <Typography variant="caption" color="text.secondary" sx={{ mt: 1, display: 'block' }}>
-                      After opening Google Maps, search for your venue, tap the share button, and paste the link above.
-                    </Typography>
-                  </Box>
-                </Col>
-              </Row>
-            )}
-          </Fieldset>          
-          {/* Show Details Section */}
-          <Fieldset legend="Show Details">
+          )}
+        </Fieldset>
+        {/* Show Details Section */}
+        <Fieldset legend="Show Details">
           <Row>
-              <Input
-                name="status"
-                label="Status"
-                size={{ xs: 12, xm: 6 }}
-                options={[
-                  { key: "draft", text: "Draft" },
-                  { key: "published", text: "Published" },
-                  { key: "cancelled", text: "Cancelled" }
-                ]}
-                info="Draft shows are not visible to the public"
-              />
-            </Row>
+            <Input
+              name="status"
+              label="Status"
+              size={{ xs: 12, xm: 6 }}
+              options={[
+                { key: "draft", text: "Draft" },
+                { key: "published", text: "Published" },
+                { key: "cancelled", text: "Cancelled" }
+              ]}
+              info="Draft shows are not visible to the public"
+            />
+          </Row>
 
-            <Row>
-              <Input
-                size={{ xs: 12, xm: 6 }}
-                name="name"
-                label="Show Name"
-              />
-              <Input
-                size={{ xs: 12, xm: 6 }}
-                name="location"
-                label="Location"
-              />
-            </Row>
-            <Row>
-              <Input
-                size={{ xs: 12, xm: 6 }}
-                datetimepicker
-                name="dateFrom"
-                label="Show Start Date & Time"
-              />
-              <Input
-                size={{ xs: 12, xm: 6 }}
-                datetimepicker
-                name="dateTo"
-                label="Show End Date & Time"
-              />
-            </Row>
-            <Row>
-              <Input size={{ xs: 12 }}
-                name="description"
-                label="Description"
-                textarea
-              />
-            </Row>
-            <Row>
-              <Input
-                size={{ xs: 12 }}
-                name="additionalPerformers"
-                label="Additional Performers"
-                optionsMulti={performers}
-                info="Select additional performers for this show (optional)"
-              />
-            </Row>
-          </Fieldset>
+          <Row>
+            <Input
+              size={{ xs: 12, xm: 6 }}
+              name="name"
+              label="Show Name"
+            />
+            <Input
+              size={{ xs: 12, xm: 6 }}
+              name="location"
+              label="Location"
+            />
+          </Row>
+          <Row>
+            <Input
+              size={{ xs: 7, xm: 6 }}
+              datetimepicker
+              name="dateFrom"
+              label="Show Start Date & Time"
+            />
+            <Input
+              size={{ xs: 7, xm: 6 }}
+              datetimepicker
+              name="dateTo"
+              label="Show End Date & Time"
+            />
+          <Row>
+            <Input
+              size={7}
+              datetimepicker
+              name="settings.requestDeadline"
+              label="Request Deadline"
+              info="When should requests close? (optional)"
+            />
+            <Input
+              size={3}
+              name="settings.maxRequestsPerUser"
+              label="Requests"
+              info="Max requests per user"
+            />
+          </Row>
 
-          <br />
-          <Fieldset>
-            <Row>
-              <Input
-                size={{ xs: 12, xm: 6 }}
-                name="venue.name"
-                label="Venue Name"
-              />
-              <Input
-                size={{ xs: 12, xm: 6 }}
-                name="venue.phone"
-                label="Venue Phone"
-              />
-            </Row>
-            <Row>
-              <Input
-                size={{ xs: 12, xm: 6 }}
-                name="venue.address.street"
-                label="Street Address"
-              />
-            </Row>
-            <Row>
-              <Input
-                size={{ xs: 6, xm: 3 }}
-                name="venue.address.city"
-                label="City"
-              />
-              <Input
-                size={{ xs: 6, xm: 4 }}
-                name="venue.address.state"
-                label="State"
-              />
-              <Input
-                size={{ xs: 4, xm: 3 }}
-                name="venue.address.zip"
-                label="ZIP Code"
-              />
-            </Row>            
-          </Fieldset>
+          </Row>
+          <Row>
+            <Input 
+              size={{ xs: 12, xm: 6 }}
+              name="description"
+              label="Description"
+              textarea
+            />
+          </Row>
+          <Row>
+            <Input
+              size={{ xs: 12 }}
+              name="additionalPerformers"
+              label="Additional Performers"
+              optionsMulti={performers}
+              info="Select additional performers for this show (optional)"
+            />
+          </Row>
+        </Fieldset>
+
+        <br />
+        <Fieldset>
+          <Row>
+            <Input
+              size={{ xs: 12, xm: 6 }}
+              name="venue.name"
+              label="Venue Name"
+            />
+            <Input
+              size={{ xs: 12, xm: 6 }}
+              name="venue.phone"
+              label="Venue Phone"
+            />
+          </Row>
+          <Row>
+            <Input
+              size={{ xs: 12, xm: 6 }}
+              name="venue.address.street"
+              label="Street Address"
+            />
+          </Row>
+          <Row>
+            <Input
+              size={{ xs: 6, xm: 3 }}
+              name="venue.address.city"
+              label="City"
+            />
+            <Input
+              size={{ xs: 6, xm: 4 }}
+              name="venue.address.state"
+              label="State"
+            />
+            <Input
+              size={{ xs: 4, xm: 3 }}
+              name="venue.address.zip"
+              label="ZIP Code"
+            />
+          </Row>
+        </Fieldset>
 
 
 
 
-          <br />
-          <Fieldset>
-            <Row>
-              <Input
-                name="settings.allowRequests"
-                label="Allow Song Requests"
-                checkbox
-                info="Enable song requests for this show"
-              />
-              <Input
-                name="settings.maxRequestsPerUser"
-                label="Max Requests Per User"
-              />
-            </Row>
-            <Row>
-              <Input
-                size={{ xs: 12, xm: 6 }}
-                datetimepicker
-                name="settings.requestDeadline"
-                label="Request Deadline"
-                info="When should requests close? (optional)"
-              />
-            </Row>
-          </Fieldset>
-        </form>
+        <br />
       </FormProvider>
-      <br/><br/>
+      <br /><br />
       {/* <TextareaDebug value={{ user }} /> */}
     </>
   );

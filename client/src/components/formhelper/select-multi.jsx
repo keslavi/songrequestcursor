@@ -1,4 +1,4 @@
-import { TextField, Autocomplete } from "@mui/material";
+import { TextField, Autocomplete, Box } from "@mui/material";
 import { cleanParentProps, colProps } from "./helper";
 import { Info } from "./info";
 import { useController } from "./form-provider";
@@ -39,37 +39,39 @@ export const SelectMulti = (props) => {
 
   return (
     <ColPadded {...colProps(props)}>
-      <Autocomplete
-        id={field.name}
-        multiple
-        onBlur={() => {
-          field.onBlur();
-          onBlur();
-        }}
-        onChange={(e, newValue) => {
-          const selectedValues = Array.isArray(newValue)
-            ? newValue.map((item) => item.key)
-            : [];
-          field.onChange(selectedValues);
-          onChange(selectedValues);
-        }}
-        options={filteredOptions}
-        getOptionLabel={(option) => option?.text || ""}
-        isOptionEqualToValue={(option, value) => option?.key == value?.key}
-        renderInput={(params) => (
-          <TextField
-            {...params}
-            inputRef={field.ref}  // Moved inputRef here
-            label={label}
-            variant="outlined"
-            error={Boolean(error)}
-            helperText={error?.message || ""}
-          />
-        )}
-        value={selectedOptions}
-        {...cleanParentProps(restProps)}
-      />
-      {info && <Info id={`${field.id}Info`} info={info} />}
+      <Box sx={{ position: 'relative' }}>
+        <Autocomplete
+          id={field.name}
+          multiple
+          onBlur={() => {
+            field.onBlur();
+            onBlur();
+          }}
+          onChange={(e, newValue) => {
+            const selectedValues = Array.isArray(newValue)
+              ? newValue.map((item) => item.key)
+              : [];
+            field.onChange(selectedValues);
+            onChange(selectedValues);
+          }}
+          options={filteredOptions}
+          getOptionLabel={(option) => option?.text || ""}
+          isOptionEqualToValue={(option, value) => option?.key == value?.key}
+          renderInput={(params) => (
+            <TextField
+              {...params}
+              inputRef={field.ref}  // Moved inputRef here
+              label={label}
+              variant="outlined"
+              error={Boolean(error)}
+              helperText={error?.message || ""}
+            />
+          )}
+          value={selectedOptions}
+          {...cleanParentProps(restProps)}
+        />
+        {info && <Info id={`${field.id}Info`} info={info} />}
+      </Box>
     </ColPadded>
   );
 };

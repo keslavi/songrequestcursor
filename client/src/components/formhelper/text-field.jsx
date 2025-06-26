@@ -1,4 +1,4 @@
-import { /* InputAdornment, */ TextField as MuiTextField } from "@mui/material";
+import { /* InputAdornment, */ TextField as MuiTextField, Box } from "@mui/material";
 import { cleanParentProps, colProps } from "./helper";
 import { useController } from "./form-provider";
 import { Info } from "./info";
@@ -30,28 +30,30 @@ export const TextField = (props) => {
 
   return (
     <ColPadded {...colProps(props)}>
-      <MuiTextField
-        fullWidth
-        id={field.name}
-        name={field.name}
-        label={props.label}
-        inputRef={field.ref}
-        onBlur={(e) => {
-          field.onBlur(e.target.value);
-          onBlur(e);
-        }}
-        onChange={(e) => {
-          field.onChange(e.target.value);
-          onChange(e);
-        }}
-        {...valueProp}
-        {...{ error: !!error || undefined, helperText: error?.message }}
-        {...cleanParentProps(props)}
-        slotProps={{
-          input: props.InputProps
-        }}
-      />
-      {props.info && <Info id={`${field.id}Info`} info={props.info} />}
+      <Box sx={{ position: 'relative' }}>
+        <MuiTextField
+          fullWidth
+          id={field.name}
+          name={field.name}
+          label={props.label}
+          inputRef={field.ref}
+          onBlur={(e) => {
+            field.onBlur(e.target.value);
+            onBlur(e);
+          }}
+          onChange={(e) => {
+            field.onChange(e.target.value);
+            onChange(e);
+          }}
+          {...valueProp}
+          {...{ error: !!error || undefined, helperText: error?.message }}
+          {...cleanParentProps(props)}
+          slotProps={{
+            input: props.InputProps
+          }}
+        />
+        {props.info && <Info id={`${field.id}Info`} info={props.info} />}
+      </Box>
       {/* {props.info &&  Info(`${field.id}Info`, props.info)}       */}
     </ColPadded>
   );
