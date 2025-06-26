@@ -1,8 +1,7 @@
-import { useState } from "react";
+import { FormControl, InputLabel, Select as MuiSelect, MenuItem, Box } from "@mui/material";
 import { cleanParentProps, colProps } from "./helper";
-import { useController } from "./form-provider";
-import { TextField as MuiTextField, Select as MuiSelect } from "@mui/material";
-
+import { useFormField } from "./form-provider";
+import { Info } from "./info";
 import { ColPadded } from "@/components/grid";
 
 export const Select = (props) => {
@@ -11,42 +10,50 @@ export const Select = (props) => {
   };
   const onBlur = props.onBlur || placeholder;
   const onChange = props.onChange || placeholder;
-  const options = props.options;
-  //const onKeyDown = props.onKeyDown || placeholder;
+  const unbound = props.unbound === "true" ? true : false;
 
-  const {field,fieldState:{error}}=useController(props);
+  // Use common hook for both patterns
+  const { field, error } = useFormField(props);
+
+  let valueProp = {};
+  if (!props.defaultvalue) {
+    if (!unbound) {
+      valueProp = {
+        value: field.value || "",
+      };
+    }
+  }
 
   return (
     <ColPadded {...colProps(props)}>
-      <MuiTextField
-        id={field.name}
-        name={field.name}
-        label={props.label}
-        fullWidth
-        select
-        slotProps={{
-          select: {
-            native: true,
-          },
-        }}
-        onBlur={(e) => {
-          field.onBlue(e.target.value);
-          onBlur(e);
-        }}
-        onChange={(e) => {
-          field.onChange(e.target.value);
-          onChange(e);
-        }}
-        value={field.value || ""}
-        {...{ error: !!error || undefined, helperText: error?.message }}
-        {...cleanParentProps(props)}
-      >
-        {options.map((x) => (
-          <option key={x.key} value={x.key}>
-            {x.text}
-          </option>
-        ))}
-      </MuiTextField>
+      <Box sx={{ position: 'relative' }}>
+        <FormControl fullWidth error={!!error}>
+          <InputLabel id={`${field.name}-label`}>{props.label}</InputLabel>
+          <MuiSelect
+            labelId={`${field.name}-label`}
+            id={field.name}
+            name={field.name}
+            inputRef={field.ref}
+            onBlur={(e) => {
+              field.onBlur(e.target.value);
+              onBlur(e);
+            }}
+            onChange={(e) => {
+              field.onChange(e.target.value);
+              onChange(e);
+            }}
+            {...valueProp}
+            {...cleanParentProps(props)}
+          >
+            {props.options?.map((option) => (
+              <MenuItem key={option.key || option.value} value={option.key || option.value}>
+                {option.text || option.label}
+              </MenuItem>
+            ))}
+          </MuiSelect>
+        </FormControl>
+        {props.info && <Info id={`${field.id}Info`} info={props.info} />}
+      </Box>
     </ColPadded>
   );
 };

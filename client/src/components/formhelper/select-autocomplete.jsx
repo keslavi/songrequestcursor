@@ -1,5 +1,5 @@
 import { useMemo } from "react";
-import { useController } from "./form-provider";
+import { useFormField } from "./form-provider";
 
 import {
   Box,
@@ -18,44 +18,58 @@ export const SelectAutocomplete = (props) => {
     return;
   };
 
+  const onBlur = props.onBlur || placeholder;
   const onChange = props.onChange || placeholder;
-  // const textPleaseSelect=props.textPleaseSelect || "Please Select";
+  const unbound = props.unbound === "true" ? true : false;
+
+  // Use common hook for both patterns
+  const { field, error } = useFormField(props);
+
+  let valueProp = {};
+  if (!props.defaultvalue) {
+    if (!unbound) {
+      valueProp = {
+        value: field.value || null,
+      };
+    }
+  }
+
   const options = useMemo(() => props.options || [], [props.options]);
 
-
-  const {field,fieldState:{error}}=useController(props);
   return (
     <ColPadded {...colProps(props)}>
-      <MuiAutocomplete
-        id={field.name}
-        name={field.name}
-        options={options}
-        getOptionLabel={(option) => option.text || ""}
-        onChange={(event, newValue) => {
-          field.onChange(newValue ? newValue.key : "");
-          onChange(event, newValue);
-        }}
-        onBlur={field.onBlur}
-        value={options.find(
-          (option) => option.key == field.value || options[0]
-        )} //avoid uncontrolled ref errors
-        fullWidth
-        popupIcon={<KeyboardArrowDown />}
-        renderInput={(params) => {
-          return (
-            <Box sx={{position:'relative'}}>
-              <MuiTextField
-                {...params}
-                label={props.label}
-                {...{ error: !!error || undefined, helperText: error?.message }}
-                //placeholder={textPleaseSelect}
-              />
-              {props.info && <Info id={`${field.id}Info`} info={props.info} />}
-            </Box>
-          );
-        }}
-        {...cleanParentProps(props)}
-      />
+      <Box sx={{ position: 'relative' }}>
+        <MuiAutocomplete
+          id={field.name}
+          name={field.name}
+          options={options}
+          getOptionLabel={(option) => option.text || option.label || ""}
+          isOptionEqualToValue={(option, value) => option.key === value?.key || option.value === value?.value}
+          onBlur={(e) => {
+            field.onBlur(e.target.value);
+            onBlur(e);
+          }}
+          onChange={(event, newValue) => {
+            field.onChange(newValue);
+            onChange(event);
+          }}
+          {...valueProp}
+          {...cleanParentProps(props)}
+          renderInput={(params) => {
+            return (
+              <Box sx={{ position: 'relative' }}>
+                <MuiTextField
+                  {...params}
+                  label={props.label}
+                  error={!!error}
+                  helperText={error?.message}
+                />
+                {props.info && <Info id={`${field.id}Info`} info={props.info} />}
+              </Box>
+            );
+          }}
+        />
+      </Box>
     </ColPadded>
   );
 };

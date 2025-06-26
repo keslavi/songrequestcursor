@@ -1,39 +1,54 @@
-import { useState } from "react";
-import { IconButton, InputAdornment } from "@mui/material";
-import { Visibility, VisibilityOff } from "@mui/icons-material";
-import { TextField } from "./text-field";
+import { TextField as MuiTextField, Box } from "@mui/material";
+import { cleanParentProps, colProps } from "./helper";
+import { useFormField } from "./form-provider";
+import { Info } from "./info";
+import { ColPadded } from "@/components/grid";
 
 export const Password = (props) => {
-  const [showPassword, setShowPassword] = useState(false);
-
-  const handleClickShowPassword = () => {
-    setShowPassword(!showPassword);
+  const placeholder = (e) => {
+    return;
   };
+  const onBlur = props.onBlur || placeholder;
+  const onChange = props.onChange || placeholder;
+  const unbound = props.unbound === "true" ? true : false;
 
-  const handleMouseDownPassword = (event) => {
-    event.preventDefault();
-  };
+  // Use common hook for both patterns
+  const { field, error } = useFormField(props);
+
+  let valueProp = {};
+  if (!props.defaultvalue) {
+    if (!unbound) {
+      valueProp = {
+        value: field.value || "",
+      };
+    }
+  }
 
   return (
-    <TextField
-      {...props}
-      type={showPassword ? "text" : "password"}
-      InputProps={{
-        ...props.InputProps,
-        endAdornment: (
-          <InputAdornment position="end">
-            <IconButton
-              aria-label="toggle password visibility"
-              onClick={handleClickShowPassword}
-              onMouseDown={handleMouseDownPassword}
-              edge="end"
-            >
-              {showPassword ? <VisibilityOff /> : <Visibility />}
-            </IconButton>
-          </InputAdornment>
-        ),
-      }}
-    />
+    <ColPadded {...colProps(props)}>
+      <Box sx={{ position: 'relative' }}>
+        <MuiTextField
+          fullWidth
+          type="password"
+          id={field.name}
+          name={field.name}
+          label={props.label}
+          inputRef={field.ref}
+          onBlur={(e) => {
+            field.onBlur(e.target.value);
+            onBlur(e);
+          }}
+          onChange={(e) => {
+            field.onChange(e.target.value);
+            onChange(e);
+          }}
+          {...valueProp}
+          {...{ error: !!error || undefined, helperText: error?.message }}
+          {...cleanParentProps(props)}
+        />
+        {props.info && <Info id={`${field.id}Info`} info={props.info} />}
+      </Box>
+    </ColPadded>
   );
 };
 

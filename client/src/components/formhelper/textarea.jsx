@@ -1,23 +1,19 @@
-import { useController } from "./form-provider";
-//const {field,fieldState:{error}}=useController(props);
-
-import { 
-  TextareaAutosize,
-  InputLabel,
-  FormHelperText, 
-  Link,
-  Box,
-} from "@mui/material";
+import { TextField as MuiTextField, Box } from "@mui/material";
 import { cleanParentProps, colProps } from "./helper";
+import { useFormField } from "./form-provider";
 import { Info } from "./info";
-import { ColPadded } from "components/grid";
+import { ColPadded } from "@/components/grid";
 
 export const Textarea = (props) => {
-  const placeholder = (e) => {return};
-  const onBluer = props.onBlur || placeholder;
+  const placeholder = (e) => {
+    return;
+  };
+  const onBlur = props.onBlur || placeholder;
   const onChange = props.onChange || placeholder;
   const unbound = props.unbound === "true" ? true : false;
-  const { field, fieldState: { error } } = useController(props);
+
+  // Use common hook for both patterns
+  const { field, error } = useFormField(props);
 
   let valueProp = {};
   if (!props.defaultvalue) {
@@ -31,14 +27,14 @@ export const Textarea = (props) => {
   return (
     <ColPadded {...colProps(props)}>
       <Box sx={{ position: 'relative' }}>
-        <InputLabel htmlFor={field.name}>{props.label}</InputLabel>
-        <TextareaAutosize
-          style={{width: "100%"}}
+        <MuiTextField
+          fullWidth
+          multiline
+          rows={props.rows || 4}
           id={field.name}
           name={field.name}
-          // minRows={3}
-          // maxRows={6}
-          ref={field.ref}
+          label={props.label}
+          inputRef={field.ref}
           onBlur={(e) => {
             field.onBlur(e.target.value);
             onBlur(e);
@@ -53,8 +49,6 @@ export const Textarea = (props) => {
         />
         {props.info && <Info id={`${field.id}Info`} info={props.info} />}
       </Box>
-      {props.helperText && <FormHelperText error>{error?.message}</FormHelperText>}
     </ColPadded>
   );
-
-}
+};

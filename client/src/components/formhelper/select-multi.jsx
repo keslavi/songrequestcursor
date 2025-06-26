@@ -1,76 +1,84 @@
-import { TextField, Autocomplete, Box } from "@mui/material";
+import { useMemo } from "react";
+import { Autocomplete, TextField as MuiTextField, Box, Chip } from "@mui/material";
 import { cleanParentProps, colProps } from "./helper";
+import { useFormField } from "./form-provider";
 import { Info } from "./info";
-import { useController } from "./form-provider";
 import { ColPadded } from "@/components/grid";
 // import { Help } from "@mui/icons-material";
 // import { color } from "@/theme-material";
-import { useMemo } from "react";
 
 export const SelectMulti = (props) => {
-  const {
-    optionsMulti: options,
-    onBlur = () => {},
-    onChange = () => {},
-    unbound = props.unbound === "true",
-    label,
-    info,
-    defaultvalue,
-    ...restProps
-  } = props;
+  const placeholder = (e) => {
+    return;
+  };
+  const onBlur = props.onBlur || placeholder;
+  const onChange = props.onChange || placeholder;
+  const unbound = props.unbound === "true" ? true : false;
 
-  const {field,fieldState:{error}}=useController(props);
+  // Use common hook for both patterns
+  const { field, error } = useFormField(props);
+
+  let valueProp = {};
+  if (!props.defaultvalue) {
+    if (!unbound) {
+      valueProp = {
+        value: field.value || [],
+      };
+    }
+  }
 
   const selectedOptions = useMemo(() => {
     return Array.isArray(field.value)
-      ? options.filter((opt) => field.value.includes(opt.key))
+      ? props.optionsMulti.filter((opt) => field.value.includes(opt.key))
       : [];
-  }, [field.value, options]);
+  }, [field.value, props.optionsMulti]);
 
   //  Filter out already selected options from dropdown
   const filteredOptions = useMemo(() => {
-    // Handle cases where field.value might be undefined or null
     const keys = field.value ? field.value.map(val => val.key) : [];
     
-    return options.filter(option => 
+    return props.optionsMulti.filter(option => 
       !keys.includes(option.key)
     );
-  }, [field.value, options]);
+  }, [field.value, props.optionsMulti]);
 
   return (
     <ColPadded {...colProps(props)}>
       <Box sx={{ position: 'relative' }}>
         <Autocomplete
-          id={field.name}
           multiple
-          onBlur={() => {
-            field.onBlur();
-            onBlur();
-          }}
-          onChange={(e, newValue) => {
-            const selectedValues = Array.isArray(newValue)
-              ? newValue.map((item) => item.key)
-              : [];
-            field.onChange(selectedValues);
-            onChange(selectedValues);
-          }}
+          id={field.name}
           options={filteredOptions}
-          getOptionLabel={(option) => option?.text || ""}
-          isOptionEqualToValue={(option, value) => option?.key == value?.key}
+          getOptionLabel={(option) => option.text || option.label || ""}
+          isOptionEqualToValue={(option, value) => option.key === value?.key || option.value === value?.value}
+          onBlur={(e) => {
+            field.onBlur(e.target.value);
+            onBlur(e);
+          }}
+          onChange={(event, newValue) => {
+            field.onChange(newValue);
+            onChange(event);
+          }}
+          {...valueProp}
+          {...cleanParentProps(props)}
+          renderTags={(value, getTagProps) =>
+            value.map((option, index) => (
+              <Chip
+                label={option.text || option.label}
+                {...getTagProps({ index })}
+              />
+            ))
+          }
           renderInput={(params) => (
-            <TextField
+            <MuiTextField
               {...params}
-              inputRef={field.ref}  // Moved inputRef here
-              label={label}
-              variant="outlined"
-              error={Boolean(error)}
-              helperText={error?.message || ""}
+              label={props.label}
+              error={!!error}
+              helperText={error?.message}
             />
           )}
-          value={selectedOptions}
-          {...cleanParentProps(restProps)}
         />
-        {info && <Info id={`${field.id}Info`} info={info} />}
+        {props.info && <Info id={`${field.id}Info`} info={props.info} />}
       </Box>
     </ColPadded>
   );

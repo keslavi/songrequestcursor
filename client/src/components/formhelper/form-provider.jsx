@@ -7,6 +7,9 @@ const FormContext = createContext();
 // Global registry to store form methods
 const formMethodsRegistry = new Map();
 
+// Re-export useRealController for components that need it directly
+export { useRealController };
+
 // Enhanced hook with validation support
 export const useFormProvider = (options = {}) => {
   try {
@@ -126,4 +129,30 @@ export const useFormContext = () => {
   const context = useContext(FormContext);
   if (!context) throw new Error("Missing FormProvider");
   return context;
+};
+
+// Common hook for all input controls to handle both patterns
+export const useFormField = (props) => {
+  let field, error;
+
+  try {
+    if (props.control && props.errors) {
+      // Direct props pattern (task-old.jsx style)
+      const result = useRealController({ control: props.control, name: props.name });
+      field = result.field;
+      error = result.fieldState.error;
+    } else {
+      // Context pattern (task.jsx style)
+      const result = useController(props);
+      field = result.field;
+      error = result.fieldState.error;
+    }
+  } catch (err) {
+    // Fallback: try context if direct fails
+    const result = useController(props);
+    field = result.field;
+    error = result.fieldState.error;
+  }
+
+  return { field, error };
 };

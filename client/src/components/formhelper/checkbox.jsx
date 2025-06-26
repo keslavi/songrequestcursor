@@ -1,36 +1,42 @@
 import {
   Checkbox as MuiCheckbox,
-  FormControlLabel as MuiFormControlLabel,
+  FormControlLabel,
   Typography,
   FormHelperText,
+  Box,
 } from "@mui/material";
 
-import { useController } from "./form-provider";
+import { useFormField } from "./form-provider";
 
 import { color } from "@/theme-material";
 import { cleanParentProps, colProps } from "./helper";
 
-
-import { ColPadded } from "components/grid";
+import { ColPadded } from "@/components/grid";
 import { isTruthy } from "helpers";
+import { Info } from "./info";
 
 export const Checkbox = (props) => {
   const placeholder = (e) => {
     return;
   };
-  const onChange = props.onChange || placeholder;
   const onBlur = props.onBlur || placeholder;
-  const variant = props.variant || "";
+  const onChange = props.onChange || placeholder;
+  const unbound = props.unbound === "true" ? true : false;
 
-  const {field,fieldState:{error}}=useController(props);
+  // Use common hook for both patterns
+  const { field, error } = useFormField(props);
 
-  const isChecked = () => {
-    const v = field.value;
-    return isTruthy(v);
-  };
+  let valueProp = {};
+  if (!props.defaultvalue) {
+    if (!unbound) {
+      valueProp = {
+        checked: field.value || false,
+      };
+    }
+  }
 
   let label = props.label || "";
-  switch (variant) {
+  switch (props.variant) {
     case "h1":
       label = (
         <Typography
@@ -66,31 +72,32 @@ export const Checkbox = (props) => {
       break;
   }
 
-  const checked = isChecked();
-
   return (
     <ColPadded {...colProps(props)}>
-      <MuiFormControlLabel
-        control={
-          <MuiCheckbox
-            id={field.name}
-            name={field.name}
-            onChange={(e) => {
-              field.onChange(e.target.checked);
-              onChange(e);
-            }}
-            onBlurCapture={(e) => {
-              field.onBlur(e.target.checked);
-              onBlue(e);
-            }}
-            checked={checked}
-            color="success"
-            {...cleanParentProps(props)}
-          />
-        }
-        label={label}
-        style={{ marginLeft: 0 }}
-      />
+      <Box sx={{ position: 'relative' }}>
+        <FormControlLabel
+          control={
+            <MuiCheckbox
+              id={field.name}
+              name={field.name}
+              inputRef={field.ref}
+              onBlur={(e) => {
+                field.onBlur(e.target.checked);
+                onBlur(e);
+              }}
+              onChange={(e) => {
+                field.onChange(e.target.checked);
+                onChange(e);
+              }}
+              {...valueProp}
+              {...{ error: !!error || undefined }}
+              {...cleanParentProps(props)}
+            />
+          }
+          label={label}
+        />
+        {props.info && <Info id={`${field.id}Info`} info={props.info} />}
+      </Box>
       {error && (
         <FormHelperText className="mui-error">{error.message}</FormHelperText>
       )}

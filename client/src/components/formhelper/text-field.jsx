@@ -1,6 +1,6 @@
 import { /* InputAdornment, */ TextField as MuiTextField, Box } from "@mui/material";
 import { cleanParentProps, colProps } from "./helper";
-import { useController } from "./form-provider";
+import { useFormField } from "./form-provider";
 import { Info } from "./info";
 import { ColPadded } from "@/components/grid";
 //import { BootstrapTooltip } from "./infotooltip";
@@ -16,8 +16,8 @@ export const TextField = (props) => {
   const onChange = props.onChange || placeholder;
   const unbound = props.unbound === "true" ? true : false;
 
-  const {field,fieldState:{error}}=useController(props);
-  //fieldstate{error, invalid, isTouched, isDirty, }
+  // Use common hook for both patterns
+  const { field, error } = useFormField(props);
 
   let valueProp = {};
   if (!props.defaultvalue) {
