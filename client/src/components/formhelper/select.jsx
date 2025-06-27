@@ -1,32 +1,65 @@
-import { FormControl, InputLabel, Select as MuiSelect, MenuItem, Box } from "@mui/material";
+import { FormControl, InputLabel, Select as MuiSelect, MenuItem } from "@mui/material";
+import { useMemo, useCallback } from "react";
 import { cleanParentProps, colProps } from "./helper";
 import { useFormField } from "./form-provider";
 import { Info } from "./info";
 import { ColPadded } from "@/components/grid";
 
 export const Select = (props) => {
-  const placeholder = (e) => {
-    return;
-  };
-  const onBlur = props.onBlur || placeholder;
-  const onChange = props.onChange || placeholder;
-  const unbound = props.unbound === "true" ? true : false;
+  // Handle both string and boolean values for unbound
+  const unbound = props.unbound === true || props.unbound === "true";
 
   // Use common hook for both patterns
   const { field, error } = useFormField(props);
 
-  let valueProp = {};
-  if (!props.defaultvalue) {
-    if (!unbound) {
-      valueProp = {
-        value: field.value || "",
-      };
+  // Memoize filtered options to avoid unnecessary recalculations
+  const filteredOptions = useMemo(() => {
+    return props.options?.filter(option => {
+      const text = option.text || option.label || '';
+      return !/please select/i.test(text);
+    }) || [];
+  }, [props.options]);
+
+  // Ensure form events fire first, then custom events
+  const onBlur = useCallback((e) => {
+    field.onBlur(e.target.value);
+    try {
+      (props.onBlur || (() => {}))(e);
+    } catch (error) {
+      console.error('Error in custom onBlur handler:', error);
+      // Re-throw to prevent silent failures
+      throw error;
     }
-  }
+  }, [field, props.onBlur]);
+
+  const onChange = useCallback((e) => {
+    field.onChange(e.target.value);
+    try {
+      (props.onChange || (() => {}))(e);
+    } catch (error) {
+      console.error('Error in custom onChange handler:', error);
+      // Re-throw to prevent silent failures
+      throw error;
+    }
+  }, [field, props.onChange]);
+
+  // Optimize option rendering by pre-computing key/value
+  const renderOptions = useMemo(() => {
+    return filteredOptions.map((option) => {
+      const optionValue = option.key || option.value;
+      const optionText = option.text || option.label;
+      
+      return (
+        <MenuItem key={optionValue} value={optionValue}>
+          {optionText}
+        </MenuItem>
+      );
+    });
+  }, [filteredOptions]);
 
   return (
     <ColPadded {...colProps(props)}>
-      <Box sx={{ position: 'relative' }}>
+      {filteredOptions.length > 0 ? (
         <FormControl fullWidth error={!!error}>
           <InputLabel id={`${field.name}-label`}>{props.label}</InputLabel>
           <MuiSelect
@@ -34,26 +67,30 @@ export const Select = (props) => {
             id={field.name}
             name={field.name}
             inputRef={field.ref}
-            onBlur={(e) => {
-              field.onBlur(e.target.value);
-              onBlur(e);
-            }}
-            onChange={(e) => {
-              field.onChange(e.target.value);
-              onChange(e);
-            }}
-            {...valueProp}
+            displayEmpty
+            placeholder={props.placeholder || "Please Select"}
+            onBlur={onBlur}
+            onChange={onChange}
+            aria-describedby={error ? `${field.name}-error` : undefined}
+            aria-invalid={!!error}
+            {...(!props.defaultvalue && !unbound && { value: field.value || null })}
             {...cleanParentProps(props)}
           >
-            {props.options?.map((option) => (
-              <MenuItem key={option.key || option.value} value={option.key || option.value}>
-                {option.text || option.label}
-              </MenuItem>
-            ))}
+            {renderOptions}
           </MuiSelect>
+          {error && (
+            <div id={`${field.name}-error`} role="alert" aria-live="polite">
+              {error.message}
+            </div>
+          )}
         </FormControl>
-        {props.info && <Info id={`${field.id}Info`} info={props.info} />}
-      </Box>
+      ) : (
+        // Show placeholder when no options are available
+        <div style={{ padding: '16px 0', color: '#666' }}>
+          {props.loadingText || "No options available"}
+        </div>
+      )}
+      {props.info && <Info id={`${field.id}Info`} info={props.info} />}
     </ColPadded>
   );
 };
