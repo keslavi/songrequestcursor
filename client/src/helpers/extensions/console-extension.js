@@ -38,9 +38,6 @@
    * @param {...any} args
    */
   console.log = (...args) => {
-    if (Array.isArray(args[0]) && args[0].includes("all")) {
-      return originalLog(...args);
-    }
 
     const currentGroups = getGroups();
 
@@ -49,12 +46,14 @@
         console.error(
           "console.log('whatever') is being deprecated! see console-extension_README.txt"
         );
-        return originalLog("use logGroups, see error above!", ...args); // fallback to regular logging
+        originalLog("use logGroups, see error above!", ...args);
+        return; // fallback to regular logging
       } else if (!Array.isArray(args[0])) {
         console.error(
           "console.log('whatever') is being deprecated! see console-extension_README.txt"
         );
-        return originalLog("use logGroups, see error above!", ...args); // fallback to regular logging
+        originalLog("use logGroups, see error above!", ...args); // fallback to regular logging
+        return;
       } else {
         //originalLog("console .log supressed"); //(...args);        
         return 
@@ -77,7 +76,19 @@
     }
  
     if (maybeGroup.some((group) => currentGroups.includes(group))) {
-      return originalLog(...args);
+      
+      // Get calling location information
+      const callerLine = new Error().stack.split('\n').find(line => 
+        !line.includes('console-extension') && 
+        !line.includes('at console.log') &&
+        line.trim() !== ''
+      );
+      
+      // Extract file name and line number from the caller line
+      const match = callerLine?.match(/at\s+(.+?)\s+\((.+?):(\d+):(\d+)\)/);
+      const locationInfo = match ? `[${match[2].split('/').pop()}:${match[3]}]` : '';
+      originalLog([...args, locationInfo]);
+      return;
     }
   };
 
