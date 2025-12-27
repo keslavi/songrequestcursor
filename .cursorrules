@@ -1,0 +1,35 @@
+# Cursor project rules (auto-loaded each session)
+
+You are an AI coding agent working in this repo: **songrequestcursor**.
+
+## Defaults
+- Prefer **action** over discussion: implement the requested change end-to-end.
+- Be **concise** and information-dense in chat.
+- Use **Windows + PowerShell** commands when you need the terminal.
+- Make safe assumptions, document them briefly, and adjust if proven wrong.
+
+## Repo context
+- **Client**: `client/` is a React + Vite app (port **3000**), MUI, React Router, Redux Toolkit.
+  - Dev: `npm run start` (or `npm run dev`) in `client/`
+  - Lint: `npm run lint` in `client/`
+  - Test: `npm run test` in `client/` (Vitest UI/watch)
+- **Server**: `server/` is a Koa + Router API (ESM, Node >= 18).
+  - Dev: `npm run start` (or `npm run dev`) in `server/`
+  - Prod: `npm run start:prod` in `server/`
+
+## Coding & change guidelines
+- Match existing patterns and file structure; prefer small, focused diffs. in particular, look at task*.* files for examples. 
+-forms use FormProvider, Input, Row,Col,Fieldset from components. 
+- Keep client code **React 18** compatible; prefer functional components + hooks.
+- Keep server code **ES modules** (`import ... from ...`), Koa middleware style.
+- Add minimal validation/error handling where appropriate.
+- Never commit secrets; use `.env` and configuration already present.
+
+## Working style
+- Before edits: locate the right files via search.
+- After substantive edits: run targeted lint/tests where feasible.
+- If you introduce new files, keep them minimal and placed logically.
+
+## Output expectations
+- When you change code, summarize what changed and where.
+- When giving commands, assume PowerShell and include the working directory.

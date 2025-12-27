@@ -142,7 +142,7 @@ export const SocialAuth = () => {
       </Box>
       <Divider sx={{ my: 2 }}>
         <Typography variant="body2" color="text.secondary">
-          Or use your email
+          Or use your phone
         </Typography>
       </Divider>
 

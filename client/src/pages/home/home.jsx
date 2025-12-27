@@ -8,24 +8,18 @@ import {
   CardContent, 
   Typography, 
   Box, 
-  Grid, 
   Chip,
-  CircularProgress,
   Alert,
-  IconButton,
-  Tooltip
 } from "@mui/material";
 import { 
   LocationOn, 
-  MyLocation, 
-  Refresh, 
   CalendarToday,
   AccessTime,
-  Person,
   Directions,
-  Phone
+  MusicNote
 } from "@mui/icons-material";
 import { store } from "store";
+import api from "@/store/api";
 
 //prettier-ignore
 import {
@@ -40,12 +34,14 @@ export const Home = () => {
   const nearbyShows = store.use.nearbyShows();
   const userLocation = store.use.userLocation();
   const isAuthenticated = store.use.isAuthenticated();
+  const user = store.use.user();
 
   const navigate = useNavigate();
   const [mapCenter, setMapCenter] = useState({ lat: 40.7128, lng: -74.0060 }); // Default to NYC
 
   useEffect(() => {
-    // Load nearby shows on component mount
+    // Try to load nearby shows on component mount
+    // This will silently fail if location times out (no intrusive error)
     loadNearbyShows();
   }, []);
 
@@ -61,6 +57,19 @@ export const Home = () => {
       await store.getState().getNearbyShowsFromLocation(161); // 100 miles = ~161 km
     } catch (error) {
       console.error('Error loading nearby shows:', error);
+      // If location fails, load all shows instead
+      loadAllShows();
+    }
+  };
+
+  const loadAllShows = async () => {
+    try {
+      // Fetch all published shows as fallback
+      const response = await api.get('/public/shows/debug/all');
+      const publishedShows = response.data.shows?.filter(s => s.status === 'published') || [];
+      store.setState({ nearbyShows: publishedShows });
+    } catch (error) {
+      console.error('Error loading all shows:', error);
     }
   };
 
@@ -68,8 +77,10 @@ export const Home = () => {
     try {
       await store.getState().getUserLocation();
       await loadNearbyShows();
+      toast.success('Location enabled! Showing nearby shows.');
     } catch (error) {
       console.error('Error getting location:', error);
+      // Don't show another toast - the store already handled it
     }
   };
 
@@ -121,13 +132,6 @@ export const Home = () => {
     }, 100);
   };
 
-  const formatDistance = (distance) => {
-    if (distance < 1) {
-      return `${Math.round(distance * 1000)}m`;
-    }
-    return `${distance.toFixed(1)}km`;
-  };
-
   const formatDate = (dateTime) => {
     const now = dayjs();
     const showDate = dayjs(dateTime);
@@ -160,17 +164,31 @@ export const Home = () => {
         <Row>
           <Col size={12}>
             <Alert severity="info" sx={{ mb: 3 }}>
-              <Typography variant="body2">
-                Allow location access to see shows within 100 miles of your current location.
+              <Typography variant="body2" gutterBottom>
+                {isEmpty(nearbyShows) 
+                  ? "Allow location access to see shows near you, or view all published shows below."
+                  : "Showing all published shows. Enable location to see shows near you."
+                }
               </Typography>
-              <Button 
-                variant="contained" 
-                size="small" 
-                onClick={handleLocationPermission}
-                sx={{ mt: 1 }}
-              >
-                Enable Location
-              </Button>
+              <Box sx={{ display: 'flex', gap: 1, flexWrap: 'wrap', mt: 1 }}>
+                <Button 
+                  variant="contained" 
+                  size="small" 
+                  onClick={handleLocationPermission}
+                >
+                  Enable Location
+                </Button>
+                <Button 
+                  variant="outlined" 
+                  size="small" 
+                  onClick={loadAllShows}
+                >
+                  View All Shows
+                </Button>
+              </Box>
+              <Typography variant="caption" color="text.secondary" display="block" sx={{ mt: 1 }}>
+                💡 Tip: If location isn't working, check your browser settings → Site settings → Location
+              </Typography>
             </Alert>
           </Col>
         </Row>
@@ -248,9 +266,40 @@ export const Home = () => {
 
                     {show.venue?.location?.coordinates && (
                       <Box sx={{ display: 'flex', gap: 1, flexWrap: 'wrap' }}>
+                        {/* Show different buttons based on whether user is a performer */}
+                        {user && (String(user._id) === String(show.performer?._id || show.performer) || 
+                          show.additionalPerformers?.some(p => String(p._id || p) === String(user._id))) ? (
+                          <Button
+                            size="small"
+                            variant="contained"
+                            color="secondary"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              navigate(`/shows/${show._id}/requests`);
+                            }}
+                            sx={{ fontSize: { xs: '0.75rem', sm: '0.875rem' } }}
+                          >
+                            View Requests
+                          </Button>
+                        ) : (
+                          <Button
+                            size="small"
+                            variant="contained"
+                            color="primary"
+                            startIcon={<MusicNote />}
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              navigate(`/shows/${show._id}`);
+                            }}
+                            sx={{ fontSize: { xs: '0.75rem', sm: '0.875rem' } }}
+                          >
+                            Join the show!
+                          </Button>
+                        )}
+
                         <Button
                           size="small"
-                          variant="contained"
+                          variant="outlined"
                           startIcon={<Directions />}
                           onClick={(e) => {
                             e.stopPropagation();

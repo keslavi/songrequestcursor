@@ -39,11 +39,34 @@ const config = {
   },
 
   // Client URL for CORS
-  clientUrl: process.env.CLIENT_URL || 'http://localhost:5173',
+  // Default to the Vite dev port used by this repo.
+  clientUrl: process.env.CLIENT_URL || 'http://localhost:3000',
+
+  // SMS / Phone verification settings
+  sms: {
+    provider: process.env.SMS_PROVIDER || 'console', // 'console' | 'twilio'
+    twilio: {
+      accountSid: process.env.TWILIO_ACCOUNT_SID,
+      authToken: process.env.TWILIO_AUTH_TOKEN,
+      from: process.env.TWILIO_FROM
+    },
+    verification: {
+      codeTtlMinutes: parseInt(process.env.PHONE_CODE_TTL_MINUTES || '10', 10),
+      resendCooldownSeconds: parseInt(process.env.PHONE_RESEND_COOLDOWN_SECONDS || '30', 10),
+      maxAttempts: parseInt(process.env.PHONE_MAX_ATTEMPTS || '5', 10),
+      messagePrefix: process.env.PHONE_SMS_PREFIX || 'Your verification code is'
+    }
+  },
 
   // Google Maps API configuration
   googleMaps: {
     apiKey: process.env.GOOGLE_MAPS_API_KEY
+  },
+
+  // Spotify API configuration (for song autocomplete)
+  spotify: {
+    clientId: process.env.SPOTIFY_CLIENT_ID,
+    clientSecret: process.env.SPOTIFY_CLIENT_SECRET
   }
 };
 

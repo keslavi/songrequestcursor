@@ -1,10 +1,8 @@
 import { useEffect, useState } from "react";
-import { isEmpty } from "lodash";
 import { toast } from "react-toastify";
 import { useNavigate } from "react-router-dom";
-import { Button, CircularProgress, Box, Typography } from "@mui/material";
+import { Button, Box, Typography } from "@mui/material";
 import { store } from "store";
-import { getPlaceDetailsFromLink } from "@/helpers";
 import dayjs from "dayjs";
 
 //prettier-ignore
@@ -13,11 +11,11 @@ import {
   FormProvider,
   useFormProvider,
   Input,
-  NavSticky,
   Row,
   TextareaDebug,
   Fieldset,
   BtnContinueSave,
+  GooglePlaceAutocomplete,
 } from "components";
 
 //prettier-ignore
@@ -32,8 +30,8 @@ export const CreateShow = () => {
   const performers = store.use.performers();
   const fetchPerformers = store.use.fetchPerformers();
   const navigate = useNavigate();
-  const [loadingPlace, setLoadingPlace] = useState(false);
-  const [isMobile, setIsMobile] = useState(false);
+  const [selectedVenue, setSelectedVenue] = useState(null);
+  const [isSelectingVenue, setIsSelectingVenue] = useState(false);
 
   // Initial form values
   const initialFormValues = {
@@ -56,12 +54,13 @@ export const CreateShow = () => {
       },
       location: {
         coordinates: [0, 0],
-        mapsLink: ""
+        mapsLink: "",
+        placeId: ""
       }
     },
     settings: {
       allowRequests: true,
-      maxRequestsPerUser: 3,
+      maxRequestsPerUser: 1,
       requestDeadline: null
     }
   };
@@ -79,24 +78,13 @@ export const CreateShow = () => {
     fetchPerformers();
   }, [fetchPerformers]);
 
-  // Detect mobile device
-  useEffect(() => {
-    const checkMobile = () => {
-      return /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent) ||
-        window.innerWidth <= 768;
-    };
-    setIsMobile(checkMobile());
-  }, []);
-
   // Get form methods for use outside the form
   const formMethods = useFormProvider({
     resolver,
     defaultValues: initialFormValues
   });
-  const { watch, setValue } = formMethods;
+  const { watch, setValue, formState } = formMethods;
 
-  // Watch the mapsLink field for changes
-  const mapsLink = watch('venue.location.mapsLink');
   // Watch the dateFrom field for changes
   const dateFrom = watch('dateFrom');
 
@@ -108,113 +96,55 @@ export const CreateShow = () => {
     }
   }, [dateFrom, setValue]);
 
-  // Effect to handle mapsLink changes
-  useEffect(() => {
-    const updateVenueDetails = async () => {
-      if (!mapsLink) return;
+  const locationErrorMessage = formState?.errors?.location?.message;
+  const selectedVenueCoordinates = Array.isArray(selectedVenue?.coordinates) ? selectedVenue.coordinates : null;
+  const hasValidCoordinates = Array.isArray(selectedVenueCoordinates)
+    && selectedVenueCoordinates.length === 2
+    && selectedVenueCoordinates.every((value) => typeof value === "number" && Number.isFinite(value))
+    && !(selectedVenueCoordinates[0] === 0 && selectedVenueCoordinates[1] === 0);
 
-      setLoadingPlace(true);
-      try {
-        const placeDetails = await getPlaceDetailsFromLink(mapsLink);
-
-        // Update form fields with place details
-        setValue('venue.name', placeDetails.name);
-        setValue('venue.mapUrl', mapsLink); // Store the original maps URL
-        setValue('venue.address.street', placeDetails.address.street);
-        setValue('venue.address.city', placeDetails.address.city);
-        setValue('venue.address.state', placeDetails.address.state);
-        setValue('venue.address.zip', placeDetails.address.zip);
-        setValue('venue.location.coordinates', placeDetails.location.coordinates);
-
-        // Also update the main location field for backward compatibility
-        setValue('location', placeDetails.name);
-
-        toast.success('Venue details loaded from Google Maps!');
-      } catch (error) {
-        toast.error('Failed to get venue details from Google Maps link');
-      } finally {
-        setLoadingPlace(false);
-      }
-    };
-
-    updateVenueDetails();
-  }, [mapsLink, setValue]);
-
-  // Function to open Google Maps app and get current location
-  const openGoogleMapsForLocation = () => {
-    if (!isMobile) {
-      toast.info('This feature is available on mobile devices');
-      return;
-    }
-
-    // Try to get current location first
-    if (navigator.geolocation) {
-      navigator.geolocation.getCurrentPosition(
-        (position) => {
-          const { latitude, longitude } = position.coords;
-
-          // Open Google Maps app with current location
-          const mapsUrl = `https://maps.google.com/maps?q=${latitude},${longitude}`;
-
-          // Try to open native app first
-          const nativeMapsUrl = `comgooglemaps://?q=${latitude},${longitude}`;
-
-          // Check if Google Maps app is installed
-          const link = document.createElement('a');
-          link.href = nativeMapsUrl;
-          link.style.display = 'none';
-          document.body.appendChild(link);
-
-          // Try to open native app, fallback to web
-          try {
-            link.click();
-            toast.info('Google Maps app opened. Please search for your venue and share the location.');
-          } catch (error) {
-            // Fallback to web version
-            window.open(mapsUrl, '_blank');
-            toast.info('Google Maps opened in browser. Please search for your venue and share the location.');
-          }
-
-          document.body.removeChild(link);
-        },
-        (error) => {
-          console.error('Geolocation error:', error);
-          // Open Google Maps without location
-          const mapsUrl = 'https://maps.google.com/';
-          const nativeMapsUrl = 'comgooglemaps://';
-
-          try {
-            window.location.href = nativeMapsUrl;
-            toast.info('Google Maps app opened. Please search for your venue and share the location.');
-          } catch (error) {
-            window.open(mapsUrl, '_blank');
-            toast.info('Google Maps opened in browser. Please search for your venue and share the location.');
-          }
-        }
-      );
-    } else {
-      toast.error('Geolocation is not supported by this browser');
-    }
+  const resetVenueFields = () => {
+    setSelectedVenue(null);
+    setIsSelectingVenue(false);
+    setValue('venue.name', '', { shouldDirty: true });
+    setValue('venue.mapUrl', '', { shouldDirty: true });
+    setValue('venue.phone', '', { shouldDirty: true });
+    setValue('venue.address.street', '', { shouldDirty: true });
+    setValue('venue.address.city', '', { shouldDirty: true });
+    setValue('venue.address.state', '', { shouldDirty: true });
+    setValue('venue.address.zip', '', { shouldDirty: true });
+    setValue('venue.location.mapsLink', '', { shouldDirty: true });
+    setValue('venue.location.placeId', '', { shouldDirty: true });
+    setValue('venue.location.coordinates', [0, 0], { shouldDirty: true });
+    setValue('location', '', { shouldDirty: true, shouldValidate: true });
   };
 
-  // Function to open Google Maps for venue search
-  const openGoogleMapsForSearch = () => {
-    if (!isMobile) {
-      toast.info('This feature is available on mobile devices');
+  const handleVenueSelected = (details) => {
+    if (!details) {
+      resetVenueFields();
       return;
     }
 
-    // Open Google Maps app for search
-    const nativeMapsUrl = 'comgooglemaps://?q=';
+    setSelectedVenue(details);
 
-    try {
-      window.location.href = nativeMapsUrl;
-      toast.info('Google Maps app opened. Please search for your venue and share the location.');
-    } catch (error) {
-      // Fallback to web version
-      window.open('https://maps.google.com/', '_blank');
-      toast.info('Google Maps opened in browser. Please search for your venue and share the location.');
-    }
+    const address = details.address || {};
+    const coordinates = Array.isArray(details.coordinates) && details.coordinates.length === 2
+      ? details.coordinates
+      : [0, 0];
+
+    setValue('location', details.name || details.formattedAddress || '', { shouldDirty: true, shouldValidate: true });
+    setValue('venue.name', details.name || '', { shouldDirty: true });
+    setValue('venue.mapUrl', details.mapUrl || '', { shouldDirty: true });
+    setValue('venue.phone', details.phoneNumber || '', { shouldDirty: true });
+    setValue('venue.address.street', address.street || '', { shouldDirty: true });
+    setValue('venue.address.city', address.city || '', { shouldDirty: true });
+    setValue('venue.address.state', address.state || '', { shouldDirty: true });
+    setValue('venue.address.zip', address.zip || '', { shouldDirty: true });
+    setValue('venue.location.mapsLink', details.mapUrl || '', { shouldDirty: true });
+    setValue('venue.location.placeId', details.placeId || '', { shouldDirty: true });
+    setValue('venue.location.coordinates', coordinates, { shouldDirty: true });
+
+    toast.success('Venue details loaded from Google Maps!');
   };
 
   // DO NOT SUBMIT HERE; it's done in BtnContinueSave
@@ -294,51 +224,72 @@ export const CreateShow = () => {
             </Col>
           </Row>
           <Row>
-            <Input size={{ xs: 12 }}
-              name="venue.location.mapsLink"
-              label="Google Maps Link"
-              placeholder="Paste the venue's Google Maps share link here"
-              info="Right-click the venue on Google Maps and select 'Share' to get the link"
-              InputProps={{
-                endAdornment: loadingPlace && (
-                  <CircularProgress color="inherit" size={20} />
-                )
-              }}
-            />
+            <Col size={{ xs: 12 }}>
+              <GooglePlaceAutocomplete
+                label="Venue Location"
+                placeholder="Search by venue name or address"
+                helperText="Select a location to auto-fill venue details"
+                error={locationErrorMessage}
+                onPlaceSelected={handleVenueSelected}
+                onLoadingChange={setIsSelectingVenue}
+                onError={(message) => toast.error(message)}
+              />
+            </Col>
           </Row>
 
-          {/* Mobile Google Maps Integration */}
-          {isMobile && (
+          {isSelectingVenue && (
             <Row>
               <Col size={{ xs: 12 }}>
-                <Box sx={{ mt: 2, mb: 2, p: 2, border: '1px solid #ddd', borderRadius: 1 }}>
-                  <Typography variant="subtitle2" gutterBottom>
-                    📱 Mobile Google Maps Integration
+                <Typography variant="caption" color="text.secondary" sx={{ mt: 1 }}>
+                  Fetching venue details...
+                </Typography>
+              </Col>
+            </Row>
+          )}
+
+          {selectedVenue && (
+            <Row>
+              <Col size={{ xs: 12 }}>
+                <Box
+                  sx={{
+                    mt: 2,
+                    p: 2,
+                    border: '1px solid',
+                    borderColor: 'divider',
+                    borderRadius: 1,
+                    bgcolor: 'background.paper',
+                  }}
+                >
+                  <Typography variant="subtitle1" sx={{ fontWeight: 600 }}>
+                    {selectedVenue.name}
                   </Typography>
-                  <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
-                    Use your device's Google Maps app to find and share venue locations
-                  </Typography>
-                  <Box sx={{ display: 'flex', gap: 1, flexWrap: 'wrap' }}>
-                    <Button
-                      variant="outlined"
-                      size="small"
-                      onClick={openGoogleMapsForLocation}
-                      sx={{ fontSize: '0.8rem' }}
-                    >
-                      📍 Use Current Location
-                    </Button>
-                    <Button
-                      variant="outlined"
-                      size="small"
-                      onClick={openGoogleMapsForSearch}
-                      sx={{ fontSize: '0.8rem' }}
-                    >
-                      🔍 Search for Venue
-                    </Button>
+                  {selectedVenue.formattedAddress && (
+                    <Typography variant="body2" color="text.secondary">
+                      {selectedVenue.formattedAddress}
+                    </Typography>
+                  )}
+                  <Box sx={{ mt: 1, display: 'flex', flexDirection: 'column', gap: 0.5 }}>
+                    {selectedVenue.phoneNumber && (
+                      <Typography variant="body2">
+                        Phone: {selectedVenue.phoneNumber}
+                      </Typography>
+                    )}
+                    {hasValidCoordinates && (
+                      <Typography variant="body2" color="text.secondary">
+                        Lat/Lng: {selectedVenueCoordinates[1].toFixed(5)}, {selectedVenueCoordinates[0].toFixed(5)}
+                      </Typography>
+                    )}
                   </Box>
-                  <Typography variant="caption" color="text.secondary" sx={{ mt: 1, display: 'block' }}>
-                    After opening Google Maps, search for your venue, tap the share button, and paste the link above.
-                  </Typography>
+                  {selectedVenue.mapUrl && (
+                    <Button
+                      variant="outlined"
+                      size="small"
+                      sx={{ mt: 1 }}
+                      onClick={() => window.open(selectedVenue.mapUrl, '_blank', 'noopener,noreferrer')}
+                    >
+                      View in Google Maps
+                    </Button>
+                  )}
                 </Box>
               </Col>
             </Row>

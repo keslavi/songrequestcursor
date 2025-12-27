@@ -40,7 +40,13 @@ export const showSlice = (set, get) => ({
       
       return show;
     } catch (e) {
-      toast.error(`<>${url} Create error<br/>${e.message}</>`);
+      const details = e.response?.data?.details;
+      const detailText = Array.isArray(details)
+        ? details.map((d) => `${d.field}: ${d.message}`).join('\n')
+        : null;
+      const msg = e.response?.data?.message || e.message || 'Create show failed';
+
+      toast.error(detailText ? `${msg}\n${detailText}` : msg);
       return null;
     }
   },

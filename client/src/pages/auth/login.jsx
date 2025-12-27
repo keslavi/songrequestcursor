@@ -1,6 +1,5 @@
-import { useEffect } from "react";
+import { useEffect, useMemo } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
-import { isEmpty } from "lodash";
 import { toast } from "react-toastify";
 import { Button, Alert } from "@mui/material";
 import { store } from "@/store/store";
@@ -16,33 +15,34 @@ import {
 
 import {
   resolverLogin,
-  errorNotification
 } from "./validation";
 import SocialAuth from "@/components/auth/social-auth";
 
 const Login = () => {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
-  const login = store.use.login();
+  const loginWithPhone = store.use.loginWithPhone();
 
   // Check for error parameters in URL
   const error = searchParams.get('error');
+
+  const defaultPhone = useMemo(() => {
+    return localStorage.getItem('lastPhoneNumber') || "";
+  }, []);
 
   // Get form methods for use outside the form
   const formMethods = useFormProvider({
     resolver: resolverLogin,
     defaultValues: {
-      email: "",
-      password: "",
+      phoneNumber: defaultPhone,
     },
   });
 
-  const onSubmit= async (data) => {
-    const success = await login(data.email, data.password);
-    if (success) {
-      navigate("/");
-    }
-  }
+  const onSubmit = async (data) => {
+    const phoneNumber = data.phoneNumber;
+    const success = await loginWithPhone(phoneNumber);
+    if (success) navigate("/");
+  };
 
   // Show error messages
   useEffect(() => {
@@ -64,8 +64,11 @@ const Login = () => {
       }
       
       toast.error(errorMessage);
+
+      // Clear the error query param so the message doesn't persist on refresh/back/forward.
+      navigate('/auth/login', { replace: true });
     }
-  }, [error]);
+  }, [error, navigate]);
 
   return (
     <>
@@ -107,24 +110,16 @@ const Login = () => {
           <Row>
             <Input
               size={{ xs: 12, xm: 7 }}
-              name="email"
-              label="Email"
-              type="email"
-            />
-          </Row>
-          <Row>
-            <Input
-              size={{ xs: 12, xm: 7 }}
-              name="password"
-              label="Password"
-              type="password"
-              password
+              name="phoneNumber"
+              label="Phone number"
+              type="tel"
+              inputProps={{ inputMode: "tel", autoComplete: "tel" }}
             />
           </Row>
           <Row>
             <Col className="text-center">
               <Button type="submit" variant="contained" color="primary">
-                Login
+                Continue
               </Button>
             </Col>
           </Row>

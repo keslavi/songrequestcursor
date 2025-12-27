@@ -6,7 +6,7 @@
   "scripts": {
     "startdev": "npm run devWithConsoleDebug",
     "start": "npm run dev",
-    "dev": "vite --port 3000",
+    "dev": "vite --port 3000 --host",
     "devWithConsoleDebug": "vite port 3000 --inspect --debug",
     "test": "vitest --ui --watch",
     "build": "node ./node_modules/vite/bin/vite.js build",

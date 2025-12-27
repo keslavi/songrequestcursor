@@ -27,6 +27,9 @@ router.get('/nearby', async (ctx) => {
       });
     }
     
+    // Include shows up to 2 hours in the past
+    const twoHoursAgo = new Date(Date.now() - 2 * 60 * 60 * 1000);
+    
     const shows = await Show.find({
       'venue.location.coordinates': {
         $near: {
@@ -37,7 +40,7 @@ router.get('/nearby', async (ctx) => {
           $maxDistance: radius * 1000 // Convert km to meters
         }
       },
-      dateFrom: { $gte: new Date() },
+      dateFrom: { $gte: twoHoursAgo },
       status: 'published'
     })
     .populate('performer', 'profile')
@@ -48,8 +51,8 @@ router.get('/nearby', async (ctx) => {
     console.log(`Found ${shows.length} shows nearby`);
     
     // Debug: Check each condition separately
-    const futureShows = await Show.find({ dateFrom: { $gte: new Date() } });
-    console.log(`Shows with future dates: ${futureShows.length}`);
+    const futureShows = await Show.find({ dateFrom: { $gte: twoHoursAgo } });
+    console.log(`Shows with dates within last 2 hours: ${futureShows.length}`);
     
     const publishedShows = await Show.find({ status: 'published' });
     console.log(`Shows with published status: ${publishedShows.length}`);

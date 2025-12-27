@@ -5,7 +5,7 @@ import { store } from '@/store/store';
 import { Box, CircularProgress, Typography } from '@mui/material';
 
 export const AuthCallback = () => {
-  const { isAuthenticated, getAccessTokenSilently, user, isLoading, error, handleRedirectCallback } = useAuth0();
+  const { isAuthenticated, getAccessTokenSilently, getIdTokenClaims, user, isLoading, error, handleRedirectCallback } = useAuth0();
   const navigate = useNavigate();
   const socialAuth = store.use.socialAuth();
 
@@ -61,12 +61,26 @@ export const AuthCallback = () => {
         try {
           console.log('=== AUTH0 CALLBACK SUCCESS ===');
           console.log('User authenticated:', user);
-          
-          const token = await getAccessTokenSilently({
-            scope: "openid profile email phone address offline_access"
-          });
-          console.log('Access token obtained');
-          
+
+          let token = null;
+          try {
+            token = await getAccessTokenSilently({
+              scope: "openid profile email phone address offline_access"
+            });
+            console.log('Access token obtained');
+          } catch (tokenError) {
+            console.warn('Access token retrieval failed, falling back to ID token:', tokenError);
+            const claims = await getIdTokenClaims();
+            token = claims?.__raw || null;
+            if (token) {
+              console.log('ID token obtained');
+            }
+          }
+
+          if (!token) {
+            throw new Error('Unable to retrieve an Auth0 token (access token and ID token both unavailable)');
+          }
+
           await socialAuth('auth0', token, user);
           
           console.log('=== USER PROFILE INFO ===');

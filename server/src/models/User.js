@@ -10,18 +10,28 @@ const userSchema = new mongoose.Schema({
     minlength: 3,
     maxlength: 30
   },
+  phoneNumber: {
+    type: String,
+    unique: true,
+    sparse: true,
+    trim: true
+  },
   email: {
     type: String,
-    required: true,
+    required: function() {
+      // Email is required for traditional (non-phone, non-social) users
+      return !this.phoneNumber && !this.profile?.auth0Id;
+    },
     unique: true,
+    sparse: true,
     trim: true,
     lowercase: true
   },
   password: {
     type: String,
     required: function() {
-      // Password is only required for non-social auth users
-      return !this.profile?.auth0Id;
+      // Password is only required for traditional (non-phone, non-social) users
+      return !this.phoneNumber && !this.profile?.auth0Id;
     },
     minlength: 8
   },
@@ -34,9 +44,16 @@ const userSchema = new mongoose.Schema({
     firstName: String,
     lastName: String,
     name: String,
+    stageName: String,
     bio: String,
     avatar: String,
     picture: String, // For social auth profile pictures
+    description: String,
+    headshotUrl: String,
+    venmoHandle: String,
+    venmoConfirmDigits: String,
+    contactEmail: String,
+    contactPhone: String,
     auth0Id: String, // Auth0 user ID (e.g., "google-oauth2|123456789")
     lastSocialLogin: Date, // Track when user last logged in via social auth
     socialProvider: String, // Track which social provider (google, facebook, etc.)
@@ -96,7 +113,8 @@ userSchema.methods.toProfile = function() {
   return {
     id: this._id,
     username: this.username,
-    email: this.email,
+    email: this.email || null,
+    phoneNumber: this.phoneNumber || this.profile?.phoneNumber || null,
     role: this.role,
     profile: this.profile,
     isActive: this.isActive,

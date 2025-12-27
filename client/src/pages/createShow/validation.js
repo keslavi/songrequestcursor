@@ -25,7 +25,8 @@ const schema = yup.object().shape({
     }),
     location: yup.object().shape({
       coordinates: yup.array().of(yup.number()).length(2).optional(),
-      mapsLink: yup.string().optional()
+      mapsLink: yup.string().optional(),
+      placeId: yup.string().optional()
     })
   }),
   settings: yup.object().shape({

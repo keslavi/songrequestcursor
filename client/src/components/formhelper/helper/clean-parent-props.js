@@ -25,6 +25,9 @@ export const cleanParentProps = (props) => {
       "max",
       "size",
       "password",
+      "textarea",
+      "allowFreeText",
+      "onInputChange",
     ];
 
     exclude.forEach(key => {

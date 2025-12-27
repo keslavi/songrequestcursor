@@ -36,31 +36,26 @@ import { store } from "@/store/store";
 import { CreateShow } from "./pages/createShow";
 import { ProtectedRoute } from "./components/auth/protected-route";
 import ShowDetail from "./pages/show-detail/show-detail";
+import { ShowRequests } from "./pages/show-requests/show-requests";
+import { ShowViewRequests } from "./pages/show-view-requests";
+import { Profile, ProfileEdit } from "./pages/profile";
+import { Songs, Song } from "./pages/profile/songs";
 
-// Menu for unauthenticated users
+// Menu configurations per auth state/role
 const unauthenticatedMenu = [
   { text: "Home", link: "/" },
   { text: "About", link: "/about" },
-  {
-    text: "Auth",
-    items: [
-      { text: "Login", link: "/auth/login" },
-      { text: "Register", link: "/auth/register" },
-    ],
-  },
-  {
-    text: "Dev",
-    items: [
-      //example of creating submenu (low css doesn't support it)
-      { text: "Tasks", link: "/dev/tasks" },
-      //{ text: "Contacts", link: "/dev/contacts" },
-      { text: "Scratchpad", link: "/dev/scratchpad" },
-      { text: "FormHelper", link: "/dev/formhelper" },
-    ],
-  },
+  { text: "Performer Login", link: "/auth/login" },
+  { text: "Performer Register", link: "/auth/register" },
 ];
 
-// Menu for authenticated users (no login/register)
+const guestMenu = [
+  { text: "Home", link: "/" },
+  { text: "About", link: "/about" },
+  { text: "Tasks", link: "/dev/tasks" },
+];
+
+// Menu for authenticated performer/admin style users (with extended options)
 const authenticatedMenu = [
   { text: "Home", link: "/" },
   { text: "About", link: "/about" },
@@ -68,7 +63,6 @@ const authenticatedMenu = [
   {
     text: "Dev",
     items: [
-      //example of creating submenu (low css doesn't support it)
       { text: "Tasks", link: "/dev/tasks" },
       //{ text: "Contacts", link: "/dev/contacts" },
       { text: "Scratchpad", link: "/dev/scratchpad" },
@@ -80,7 +74,20 @@ const authenticatedMenu = [
 // Wrapper component that provides the appropriate menu based on auth status
 const AppWrapper = () => {
   const isAuthenticated = store.use.isAuthenticated();
-  const menu = isAuthenticated ? authenticatedMenu : unauthenticatedMenu;
+  const user = store.use.user();
+  const role = user?.role;
+
+  const isGuestRole = role === "guest" || role === "user";
+  const isPerformerRole = ['admin', 'performer', 'organizer'].includes(role);
+
+  let menu;
+  if (!isAuthenticated) {
+    menu = unauthenticatedMenu;
+  } else if (isGuestRole && !isPerformerRole) {
+    menu = guestMenu;
+  } else {
+    menu = authenticatedMenu;
+  }
   
   return <App menu={menu} />;
 };
@@ -140,10 +147,54 @@ const router = createBrowserRouter(
               ),
             },
             {
+              path: ":showId/requests",
+              element: (
+                <ProtectedRoute>
+                  <ShowRequests />
+                </ProtectedRoute>
+              ),
+            },
+            {
+              path: ":id/view-requests",
+              element: <ShowViewRequests />,
+            },
+            {
               path: ":id",
               element: <ShowDetail />,
             },
           ],
+        },
+        {
+          path: "profile",
+          element: (
+            <ProtectedRoute>
+              <Profile />
+            </ProtectedRoute>
+          ),
+        },
+        {
+          path: "profile/edit",
+          element: (
+            <ProtectedRoute>
+              <ProfileEdit />
+            </ProtectedRoute>
+          ),
+        },
+        {
+          path: "profile/songs",
+          element: (
+            <ProtectedRoute>
+              <Songs />
+            </ProtectedRoute>
+          ),
+        },
+        {
+          path: "profile/songs/:id",
+          element: (
+            <ProtectedRoute>
+              <Song />
+            </ProtectedRoute>
+          ),
         },
         {
           path: "dev",

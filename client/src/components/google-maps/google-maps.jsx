@@ -6,25 +6,24 @@ import {
   Typography, 
   Button, 
   Box, 
-  Chip,
-  IconButton,
-  Tooltip,
   CircularProgress
 } from '@mui/material';
 import { 
   LocationOn, 
   Directions, 
-  Phone, 
   CalendarToday,
   AccessTime,
-  Person
+  MusicNote
 } from '@mui/icons-material';
 import { toast } from 'react-toastify';
 import dayjs from 'dayjs';
+import { useNavigate } from 'react-router-dom';
+import PropTypes from 'prop-types';
 
 // console.log('GoogleMaps component imports loaded, Loader available:', !!Loader);
 
 const GoogleMaps = ({ shows = [], center = { lat: 40.7128, lng: -74.0060 }, zoom = 8, autoFitBounds = true }) => {
+  const navigate = useNavigate();
   const mapRef = useRef(null);
   const [map, setMap] = useState(null);
   const [markers, setMarkers] = useState([]);
@@ -135,6 +134,7 @@ const GoogleMaps = ({ shows = [], center = { lat: 40.7128, lng: -74.0060 }, zoom
         // The map will be automatically cleaned up when the container is removed
       }
     };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [center, zoom]); // Remove map from dependencies to prevent re-initialization
 
   // Handle center and zoom changes
@@ -217,8 +217,12 @@ const GoogleMaps = ({ shows = [], center = { lat: 40.7128, lng: -74.0060 }, zoom
                 <p style="margin: 4px 0;"><strong>Time:</strong> ${dayjs(show.dateFrom).format('h:mm A')}</p>
                 <p style="margin: 4px 0;"><strong>Performer:</strong> ${show.performers?.[0]?.profile?.name || 'N/A'}</p>
                 <div style="margin-top: 8px;">
+                  <button onclick="window.joinShow('${show._id || ''}')" 
+                          style="background: #1976d2; color: white; border: none; padding: 6px 10px; border-radius: 4px; cursor: pointer; margin-right: 6px;">
+                    Join the show!
+                  </button>
                   <button onclick="window.openMaps('${lat}', '${lng}', '${show.venue?.name || ''}')" 
-                          style="background: #1976d2; color: white; border: none; padding: 4px 8px; border-radius: 4px; cursor: pointer; margin-right: 4px;">
+                          style="background: transparent; color: #1976d2; border: 1px solid #1976d2; padding: 6px 10px; border-radius: 4px; cursor: pointer;">
                     Open Maps
                   </button>
                 </div>
@@ -263,8 +267,12 @@ const GoogleMaps = ({ shows = [], center = { lat: 40.7128, lng: -74.0060 }, zoom
                 <p style="margin: 4px 0;"><strong>Time:</strong> ${dayjs(show.dateFrom).format('h:mm A')}</p>
                 <p style="margin: 4px 0;"><strong>Performer:</strong> ${show.performers?.[0]?.profile?.name || 'N/A'}</p>
                 <div style="margin-top: 8px;">
+                  <button onclick="window.joinShow('${show._id || ''}')" 
+                          style="background: #1976d2; color: white; border: none; padding: 6px 10px; border-radius: 4px; cursor: pointer; margin-right: 6px;">
+                    Join the show!
+                  </button>
                   <button onclick="window.openMaps('${lat}', '${lng}', '${show.venue?.name || ''}')" 
-                          style="background: #1976d2; color: white; border: none; padding: 4px 8px; border-radius: 4px; cursor: pointer; margin-right: 4px;">
+                          style="background: transparent; color: #1976d2; border: 1px solid #1976d2; padding: 6px 10px; border-radius: 4px; cursor: pointer;">
                     Open Maps
                   </button>
                 </div>
@@ -289,8 +297,8 @@ const GoogleMaps = ({ shows = [], center = { lat: 40.7128, lng: -74.0060 }, zoom
     // console.log('Created markers:', newMarkers.length);
     setMarkers(newMarkers);
 
-    // Fit bounds to show all markers
-    if (newMarkers.length > 0) {
+    // Fit bounds to show all markers (optional)
+    if (autoFitBounds && newMarkers.length > 0) {
       if (newMarkers.length === 1) {
         // For single marker, just center on it without changing zoom
         const marker = newMarkers[0];
@@ -324,7 +332,8 @@ const GoogleMaps = ({ shows = [], center = { lat: 40.7128, lng: -74.0060 }, zoom
         // console.log('Multiple markers - fit bounds with zoom limit');
       }
     }
-  }, [map, google, shows]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [map, google, shows, autoFitBounds]);
 
   // Global function for info window buttons
   useEffect(() => {
@@ -334,9 +343,6 @@ const GoogleMaps = ({ shows = [], center = { lat: 40.7128, lng: -74.0060 }, zoom
       // Google Maps URLs
       const googleMapsWeb = `https://maps.google.com/maps?q=${query}`;
       const googleMapsApp = `comgooglemaps://?q=${query}`;
-      
-      // Apple Maps URL
-      const appleMaps = `http://maps.apple.com/?q=${query}`;
       
       // Try to open Google Maps app first, fallback to web
       const link = document.createElement('a');
@@ -349,8 +355,15 @@ const GoogleMaps = ({ shows = [], center = { lat: 40.7128, lng: -74.0060 }, zoom
       }, 100);
     };
 
+    window.joinShow = (showId) => {
+      if (!showId) return;
+      // Use full reload-safe navigation because InfoWindow HTML isn't React-controlled.
+      window.location.href = `/shows/${showId}`;
+    };
+
     return () => {
       delete window.openMaps;
+      delete window.joinShow;
     };
   }, []);
 
@@ -360,9 +373,6 @@ const GoogleMaps = ({ shows = [], center = { lat: 40.7128, lng: -74.0060 }, zoom
     // Google Maps URLs
     const googleMapsWeb = `https://maps.google.com/maps?q=${query}`;
     const googleMapsApp = `comgooglemaps://?q=${query}`;
-    
-    // Apple Maps URL
-    const appleMaps = `http://maps.apple.com/?q=${query}`;
     
     // Try to open Google Maps app first, fallback to web
     const link = document.createElement('a');
@@ -393,9 +403,6 @@ const GoogleMaps = ({ shows = [], center = { lat: 40.7128, lng: -74.0060 }, zoom
     // Google Maps directions
     const googleDirections = `https://maps.google.com/maps/dir/${origin}/${destination}`;
     const googleDirectionsApp = `comgooglemaps://?saddr=${origin}&daddr=${destination}&directionsmode=driving`;
-    
-    // Apple Maps directions
-    const appleDirections = `http://maps.apple.com/?saddr=${origin}&daddr=${destination}`;
     
     // Try Google Maps app first
     const link = document.createElement('a');
@@ -570,6 +577,18 @@ const GoogleMaps = ({ shows = [], center = { lat: 40.7128, lng: -74.0060 }, zoom
                   <Button
                     size="small"
                     variant="contained"
+                    color="primary"
+                    startIcon={<MusicNote />}
+                    onClick={() => {
+                      navigate(`/shows/${selectedShow._id}`);
+                    }}
+                  >
+                    Join the show!
+                  </Button>
+
+                  <Button
+                    size="small"
+                    variant="outlined"
                     startIcon={<Directions />}
                     onClick={() => {
                       const [lng, lat] = selectedShow.venue.location.coordinates;
@@ -612,3 +631,13 @@ const GoogleMaps = ({ shows = [], center = { lat: 40.7128, lng: -74.0060 }, zoom
 };
 
 export { GoogleMaps }; 
+
+GoogleMaps.propTypes = {
+  shows: PropTypes.array,
+  center: PropTypes.shape({
+    lat: PropTypes.number,
+    lng: PropTypes.number,
+  }),
+  zoom: PropTypes.number,
+  autoFitBounds: PropTypes.bool,
+};

@@ -43,8 +43,38 @@ export const Register = () => {
   }, [isAuthenticated, navigate]);
 
   const onSubmit = async (values) => {
-    const { confirmPassword, ...userData } = values;
-    const success = await register(userData);
+    const {
+      confirmPassword,
+      stageName,
+      venmoHandle,
+      venmoConfirmDigits,
+      contactEmail,
+      contactPhone,
+      description,
+      headshotUrl,
+      ...userData
+    } = values;
+
+    const profile = {
+      stageName,
+      venmoHandle,
+      venmoConfirmDigits,
+      contactEmail,
+      contactPhone,
+      description,
+      headshotUrl,
+    };
+
+    const payload = {
+      ...userData,
+      profile,
+    };
+
+    if (!payload.username && payload.email) {
+      payload.username = payload.email.split('@')[0];
+    }
+
+    const success = await register(payload);
     if (success) {
       navigate("/");
     }
@@ -62,7 +92,14 @@ export const Register = () => {
         onSubmit={onSubmit}
         formMethods={formMethods}
       >
-        <Fieldset>
+  <Fieldset legend="Account Details">
+          <Row>
+            <Input
+              size={{ xs: 12, xm: 7 }}
+              name="username"
+              label="Username"
+            />
+          </Row>
           <Row>
             <Input
               size={{ xs: 12, xm: 7 }}
@@ -94,6 +131,61 @@ export const Register = () => {
               Register
             </Button>
           </div>
+        </Fieldset>
+  <Fieldset legend="Performer Profile">
+          <Row>
+            <Input
+              size={{ xs: 12, xm: 7 }}
+              name="stageName"
+              label="Stage / Entertainer Name"
+            />
+          </Row>
+          <Row>
+            <Input
+              size={{ xs: 12, xm: 7 }}
+              name="venmoHandle"
+              label="Venmo Handle"
+            />
+          </Row>
+          <Row>
+            <Input
+              size={{ xs: 12, xm: 7 }}
+              name="venmoConfirmDigits"
+              label="Venmo Confirmation Digits"
+              info="Last 4 digits shown to requesters"
+            />
+          </Row>
+          <Row>
+            <Input
+              size={{ xs: 12, xm: 7 }}
+              name="contactEmail"
+              label="Public Contact Email"
+              type="email"
+            />
+          </Row>
+          <Row>
+            <Input
+              size={{ xs: 12, xm: 7 }}
+              name="contactPhone"
+              label="Contact Phone"
+            />
+          </Row>
+          <Row>
+            <Input
+              size={{ xs: 12, xm: 7 }}
+              name="headshotUrl"
+              label="Headshot Image URL"
+            />
+          </Row>
+          <Row>
+            <Input
+              size={{ xs: 12, xm: 7 }}
+              name="description"
+              label="Performer Description"
+              textarea
+              rows={4}
+            />
+          </Row>
         </Fieldset>
       </FormProvider>
     </>

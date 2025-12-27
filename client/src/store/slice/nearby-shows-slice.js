@@ -8,7 +8,7 @@ export const nearbyShowsSlice = (set, get) => ({
   // Get user's current location
   getUserLocation: () => {
     if (!navigator.geolocation) {
-      toast.error('Geolocation is not supported by this browser');
+      console.warn('Geolocation is not supported by this browser');
       return Promise.reject('Geolocation not supported');
     }
 
@@ -33,18 +33,23 @@ export const nearbyShowsSlice = (set, get) => ({
               errorMessage = 'Location information unavailable.';
               break;
             case error.TIMEOUT:
-              errorMessage = 'Location request timed out.';
+              errorMessage = 'Location request timed out. Try refreshing the page.';
               break;
             default:
               errorMessage = 'An unknown error occurred getting location.';
           }
           
-          toast.error(errorMessage);
+          // Only log timeout errors, don't show toast
+          if (error.code === error.TIMEOUT) {
+            console.warn(errorMessage);
+          } else {
+            toast.error(errorMessage);
+          }
           reject(error);
         },
         {
-          enableHighAccuracy: true,
-          timeout: 10000,
+          enableHighAccuracy: false, // Faster, less accurate
+          timeout: 15000, // 15 seconds
           maximumAge: 300000 // 5 minutes
         }
       );

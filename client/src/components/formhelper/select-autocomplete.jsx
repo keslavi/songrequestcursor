@@ -25,16 +25,22 @@ export const SelectAutocomplete = (props) => {
   // Use common hook for both patterns
   const { field, error } = useFormField(props);
 
-  let valueProp = {};
-  if (!props.defaultvalue) {
-    if (!unbound) {
-      valueProp = {
-        value: field.value || null,
-      };
-    }
-  }
-
   const options = useMemo(() => props.options || [], [props.options]);
+
+  const getOptionKey = (opt) => opt?.key ?? opt?.value ?? null;
+
+  // RHF stores the selected key (string), but MUI Autocomplete expects the full option object.
+  const selectedOption = useMemo(() => {
+    if (props.defaultvalue || unbound) return undefined;
+
+    const v = field.value;
+    if (!v) return null;
+
+    // Backward-compat: if old code stored the full object, honor it.
+    if (typeof v === "object") return v;
+
+    return options.find((o) => String(getOptionKey(o)) === String(v)) || null;
+  }, [field.value, options, props.defaultvalue, unbound]);
 
   return (
     <ColPadded {...colProps(props)}>
@@ -44,16 +50,18 @@ export const SelectAutocomplete = (props) => {
           name={field.name}
           options={options}
           getOptionLabel={(option) => option.text || option.label || ""}
-          isOptionEqualToValue={(option, value) => option.key === value?.key || option.value === value?.value}
+          isOptionEqualToValue={(option, value) => String(getOptionKey(option)) === String(getOptionKey(value))}
           onBlur={(e) => {
             field.onBlur(e.target.value);
             onBlur(e);
           }}
           onChange={(event, newValue) => {
-            field.onChange(newValue);
+            // Save only the key into RHF, not the whole object.
+            const key = getOptionKey(newValue);
+            field.onChange(key ?? null);
             onChange(event);
           }}
-          {...valueProp}
+          {...(!props.defaultvalue && !unbound && { value: selectedOption })}
           {...cleanParentProps(props)}
           renderInput={(params) => {
             return (

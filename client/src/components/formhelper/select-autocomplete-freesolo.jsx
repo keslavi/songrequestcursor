@@ -16,9 +16,20 @@ import { KeyboardArrowDown } from "@mui/icons-material";
 export const SelectAutocompleteFreesolo = (props) => {
   const [inputValue, setInputValue] = useState('');
   const onChange = props.onChange || (() => {});
+  const onInputChange = props.onInputChange || (() => {});
   const options = useMemo(() => props.options || [], [props.options]);
 
   const {field, fieldState:{error}} = useController(props);
+
+  const getOptionKey = (opt) => opt?.key ?? opt?.value ?? null;
+
+  // Similar to SelectAutocomplete: store the key/string in RHF, but provide an object to MUI when needed.
+  const selectedOption = useMemo(() => {
+    const v = field.value;
+    if (!v) return null;
+    if (typeof v === 'object') return v;
+    return options.find((o) => String(getOptionKey(o)) === String(v)) || null;
+  }, [field.value, options]);
 
   return (
     <ColPadded {...colProps(props)}>
@@ -40,9 +51,10 @@ export const SelectAutocompleteFreesolo = (props) => {
             // Free text input
             field.onChange(newValue);
             onChange(event, { songname: newValue, isCustom: true });
-          } else if (newValue && newValue.key) {
+          } else if (newValue) {
             // Selected from dropdown
-            field.onChange(newValue.songname);
+            const key = getOptionKey(newValue);
+            field.onChange(key ?? '');
             onChange(event, newValue);
           } else {
             // No value
@@ -51,11 +63,17 @@ export const SelectAutocompleteFreesolo = (props) => {
           }
         }}
         onInputChange={(event, newInputValue) => {
+          console.log('MUI onInputChange:', newInputValue);
           setInputValue(newInputValue);
+          // Call parent's onInputChange if provided (for dynamic autocomplete)
+          if (onInputChange) {
+            console.log('Calling parent onInputChange');
+            onInputChange(event, newInputValue);
+          }
         }}
         inputValue={inputValue}
         onBlur={field.onBlur}
-        value={field.value || ''}
+        value={selectedOption || field.value || ''}
         fullWidth
         popupIcon={<KeyboardArrowDown />}
         renderInput={(params) => {

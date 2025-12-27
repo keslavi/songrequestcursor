@@ -8,6 +8,8 @@ import auth from "./slice/auth-slice";
 import show from "./slice/show-slice";
 import nearbyShows from "./slice/nearby-shows-slice";
 import user from "./slice/user-slice";
+import song from "./slice/song-slice";
+import profile from "./slice/profile-slice";
 
 export const useStoreDirectly = create(devtools((...a) => ({
     ...api(...a),//http request counter
@@ -17,6 +19,8 @@ export const useStoreDirectly = create(devtools((...a) => ({
     ...show(...a),
     ...nearbyShows(...a),
     ...user(...a),
+    ...song(...a),
+    ...profile(...a),
   }))
 );
 

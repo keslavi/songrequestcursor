@@ -260,16 +260,29 @@ export const Header = (props) => {
                   open={Boolean(anchorElUser)}
                   onClose={onCloseUserMenu}
                 >
-                  {settings.map((setting) => (
-                    <MenuItem 
-                      key={setting} 
-                      onClick={setting === "Logout" ? handleLogout : onCloseUserMenu}
-                    >
-                      <Typography sx={{ textAlign: "center" }}>
-                        {setting}
-                      </Typography>
-                    </MenuItem>
-                  ))}
+                  {settings.map((setting) => {
+                    if (setting === "Profile") {
+                      return (
+                        <NavLink to="/profile" key={setting} style={{ textDecoration: 'none', color: 'inherit' }}>
+                          <MenuItem onClick={onCloseUserMenu}>
+                            <Typography sx={{ textAlign: "center" }}>
+                              {setting}
+                            </Typography>
+                          </MenuItem>
+                        </NavLink>
+                      );
+                    }
+                    return (
+                      <MenuItem 
+                        key={setting} 
+                        onClick={setting === "Logout" ? handleLogout : onCloseUserMenu}
+                      >
+                        <Typography sx={{ textAlign: "center" }}>
+                          {setting}
+                        </Typography>
+                      </MenuItem>
+                    );
+                  })}
                 </Menu>
               </Box>
             )}

@@ -1,3 +1,5 @@
+when building a form or slice, use task.jsx and task-slice.js as the templates. field controls use <FormProvider> and <Input>, <Fieldset>, <Col>,<Row> 
+
 in the database, each performer will have a songlist. 
 the fields in the songlist will be:
 - songname

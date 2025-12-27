@@ -22,8 +22,9 @@ export const authenticateToken = async (ctx, next) => {
       return;
     }
 
-    ctx.state = ctx.state || {};
-    ctx.state.user = user;
+  ctx.state = ctx.state || {};
+  ctx.state.user = user;
+  ctx.user = user;
     await next();
   } catch (err) {
     ctx.status = 401;

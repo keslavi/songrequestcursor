@@ -107,7 +107,7 @@ const showSchema = new mongoose.Schema({
 showSchema.index({ dateFrom: 1, status: 1 });
 showSchema.index({ dateTo: 1, status: 1 });
 showSchema.index({ createdBy: 1 });
-showSchema.index({ 'venue.location.coordinates': '2dsphere' });
+// Note: geo index is declared at the field level on `venue.location.coordinates`
 
 // Method to check if show is accepting requests
 showSchema.methods.isAcceptingRequests = function() {

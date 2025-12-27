@@ -24,7 +24,28 @@ const songSchema = new mongoose.Schema({
     type: String,
     trim: true
   },
+  bpm: {
+    type: Number,
+    min: 1,
+    max: 500
+  },
   notes: {
+    type: String,
+    trim: true
+  },
+  link1: {
+    type: String,
+    trim: true
+  },
+  link2: {
+    type: String,
+    trim: true
+  },
+  attachmentUrl: {
+    type: String,
+    trim: true
+  },
+  attachmentFilename: {
     type: String,
     trim: true
   },
@@ -65,7 +86,12 @@ songSchema.methods.toPublic = function() {
     year: this.year,
     tags: this.tags,
     key: this.key,
+    bpm: this.bpm,
     notes: this.notes,
+    link1: this.link1,
+    link2: this.link2,
+    attachmentUrl: this.attachmentUrl,
+    attachmentFilename: this.attachmentFilename,
     displayText: this.getDisplayText(),
     searchText: this.getSearchText()
   };

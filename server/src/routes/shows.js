@@ -108,15 +108,21 @@ router.patch('/:id',
 
     const updates = ctx.request.body;
 
-    // Update show
-    Object.assign(show, updates);
-    await show.save();
-
-    // Return updated show
-    ctx.body = await Show.findById(show._id)
+    // Use atomic update to prevent race conditions during concurrent operations
+    const updatedShow = await Show.findByIdAndUpdate(
+      ctx.params.id,
+      { $set: updates },
+      { new: true, runValidators: true }
+    )
       .populate('createdBy', 'profile')
       .populate('performer', 'profile')
       .populate('additionalPerformers', 'profile');
+
+    if (!updatedShow) {
+      ctx.throw(404, 'Show not found after update');
+    }
+
+    ctx.body = updatedShow;
   }
 );
 

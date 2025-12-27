@@ -57,12 +57,12 @@ export const Input = (props) => {
     ? Datepicker
     : checkbox
     ? Checkbox
+    : allowFreeText
+    ? SelectAutocompleteFreesolo
     : !isEmpty(options)
-    ? allowFreeText
-      ? SelectAutocompleteFreesolo
-      : select
-        ? Select
-        : SelectAutocomplete
+    ? select
+      ? Select
+      : SelectAutocomplete
     : !isEmpty(optionsMulti)
     ? SelectMulti
     : !isEmpty(optionsRadio)

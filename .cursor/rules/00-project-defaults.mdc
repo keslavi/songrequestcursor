@@ -1,0 +1,27 @@
+# Project defaults (auto-loaded)
+
+These rules apply to every new Cursor agent/session in this repo.
+
+## Defaults
+- Be action-oriented: implement requested changes end-to-end.
+- Be concise and information-dense.
+- Assume **Windows + PowerShell** for commands.
+
+## Repo context
+- Client: `client/` React + Vite (port 3000), MUI, React Router, Redux Toolkit.
+  - Run: `client> npm run start`
+  - Lint: `client> npm run lint`
+  - Test: `client> npm run test`
+- Server: `server/` Koa API (ESM), Node >= 18.
+  - Run: `server> npm run start`
+  - Prod: `server> npm run start:prod`
+
+## Coding guidelines
+- Follow existing patterns and file structure; keep diffs small and focused.
+- Client: functional components + hooks; avoid unnecessary abstractions.
+- Server: ES modules and Koa middleware style.
+- Don’t add secrets; use `.env`.
+
+## Quality bar
+- After substantive edits, run relevant lint/tests when feasible.
+- Summarize what changed and where.

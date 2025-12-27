@@ -9,7 +9,13 @@ const requestSchema = new mongoose.Schema({
   user: {
     type: mongoose.Schema.Types.ObjectId,
     ref: 'User',
-    required: true
+    required: false,
+    default: null
+  },
+  requesterPhone: {
+    type: String,
+    trim: true,
+    default: null
   },
   songs: [{
     songId: {
@@ -22,6 +28,10 @@ const requestSchema = new mongoose.Schema({
       trim: true
     },
     artist: {
+      type: String,
+      trim: true
+    },
+    key: {
       type: String,
       trim: true
     },
@@ -43,7 +53,7 @@ const requestSchema = new mongoose.Schema({
   },
   status: {
     type: String,
-    enum: ['pending', 'approved', 'rejected', 'completed', 'cancelled'],
+    enum: ['pending', 'playing', 'played', 'alternate', 'declined'],
     default: 'pending'
   },
   priority: {
@@ -57,6 +67,22 @@ const requestSchema = new mongoose.Schema({
       default: 'pending'
     }
   },
+  performerResponses: [{
+    performer: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'User',
+      required: true
+    },
+    response: {
+      type: String,
+      enum: ['accept', 'pass'],
+      required: true
+    },
+    respondedAt: {
+      type: Date,
+      default: Date.now
+    }
+  }],
   performerNotes: String,
   completedAt: Date
 }, {
@@ -65,11 +91,12 @@ const requestSchema = new mongoose.Schema({
 
 // Indexes for efficient querying
 requestSchema.index({ show: 1, user: 1 });
+requestSchema.index({ show: 1, requesterPhone: 1 });
 requestSchema.index({ status: 1, createdAt: -1 });
 
 // Method to check if request can be modified
 requestSchema.methods.canBeModified = function() {
-  return ['pending', 'approved'].includes(this.status);
+  return ['pending', 'alternate'].includes(this.status);
 };
 
 // Method to get songs display text
@@ -99,12 +126,24 @@ requestSchema.methods.getVenmoUrl = function() {
   return `https://venmo.com/GoEvenSteven?txn=pay&amount=${this.tipAmount}&note=${note}`;
 };
 
+// Method to get performer response for a specific performer
+requestSchema.methods.getPerformerResponse = function(performerId) {
+  const response = this.performerResponses.find(
+    r => r.performer.toString() === performerId.toString()
+  );
+  return response ? response.response : null;
+};
+
 // Method to get public request data
 requestSchema.methods.toPublic = function() {
+  const phoneDigits = this.requesterPhone ? String(this.requesterPhone).replace(/[^\d]/g, '') : '';
+  const last4 = phoneDigits.length >= 4 ? phoneDigits.slice(-4) : null;
+
   return {
     id: this._id,
     show: this.show,
     user: this.user,
+    requesterPhoneLast4: last4,
     songs: this.songs,
     dedication: this.dedication,
     tipAmount: this.tipAmount,
@@ -113,6 +152,7 @@ requestSchema.methods.toPublic = function() {
     tip: {
       status: this.tip.status
     },
+    performerResponses: this.performerResponses,
     performerNotes: this.performerNotes,
     completedAt: this.completedAt,
     songsDisplayText: this.getSongsDisplayText(),

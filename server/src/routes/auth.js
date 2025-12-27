@@ -1,8 +1,11 @@
 import Router from '@koa/router';
 import jwt from 'jsonwebtoken';
 import { User } from '../models/User.js';
+import { PhoneVerification } from '../models/PhoneVerification.js';
 import config from '../config.js';
 import emailService from '../services/emailService.js';
+import smsService from '../services/smsService.js';
+import bcrypt from 'bcryptjs';
 
 const router = new Router({ prefix: '/api/public/auth' });
 
@@ -19,11 +22,90 @@ const generateUniqueUsername = async (baseUsername) => {
   return username;
 };
 
+const normalizePhoneNumber = (raw) => {
+  if (!raw) return null;
+  const trimmed = String(raw).trim();
+  const digits = trimmed.replace(/[^\d+]/g, '');
+
+  // Keep leading + if present, otherwise strip to digits for normalization.
+  const plusPrefixed = digits.startsWith('+') ? digits : digits.replace(/[^\d]/g, '');
+  const cleanDigits = plusPrefixed.startsWith('+') ? plusPrefixed.slice(1).replace(/[^\d]/g, '') : plusPrefixed.replace(/[^\d]/g, '');
+
+  if (!cleanDigits) return null;
+
+  // Basic heuristic:
+  // - If 10 digits, assume US and prefix +1
+  // - Otherwise, prefix + and keep as-is (E.164-ish)
+  if (cleanDigits.length === 10) return `+1${cleanDigits}`;
+  if (cleanDigits.length < 10 || cleanDigits.length > 15) return null;
+  return `+${cleanDigits}`;
+};
+
+const generateOtpCode = () => {
+  return String(Math.floor(100000 + Math.random() * 900000));
+};
+
+const findOrCreateUserByPhone = async (normalized) => {
+  let user = await User.findOne({
+    $or: [{ phoneNumber: normalized }, { 'profile.phoneNumber': normalized }]
+  });
+
+  if (!user) {
+    const last4 = normalized.slice(-4);
+    const baseUsername = `user${last4}`;
+    const username = await generateUniqueUsername(baseUsername);
+
+    user = new User({
+      username,
+      phoneNumber: normalized,
+      role: 'guest',
+      profile: {
+        name: username,
+        phoneNumber: normalized,
+        // No OTP verification in this flow.
+        phoneNumberVerified: false
+      },
+      lastLogin: new Date()
+    });
+    await user.save();
+    return user;
+  }
+
+  user.phoneNumber = user.phoneNumber || normalized;
+  user.profile = {
+    ...user.profile,
+    phoneNumber: user.profile?.phoneNumber || normalized
+  };
+  user.lastLogin = new Date();
+  await user.save();
+  return user;
+};
+
 // Register new user
 router.post('/register', async (ctx) => {
-  const { username, email, password, profile } = ctx.request.body;
+  const {
+    username: rawUsername,
+    email,
+    password,
+    profile: incomingProfile = {},
+    stageName,
+    venmoHandle,
+    venmoConfirmDigits,
+    contactEmail,
+    contactPhone,
+    description,
+    headshotUrl,
+  } = ctx.request.body || {};
+
+  const username = rawUsername?.trim() || (typeof email === 'string' ? email.split('@')[0] : undefined);
 
   try {
+    if (!username) {
+      ctx.status = 400;
+      ctx.body = { message: 'Username is required' };
+      return;
+    }
+
     const existingUser = await User.findOne({ 
       $or: [{ email }, { username }] 
     });
@@ -41,14 +123,62 @@ router.post('/register', async (ctx) => {
       return;
     }
 
+    const profileData = { ...incomingProfile };
+
+    const normalizeString = (value) => {
+      if (typeof value !== 'string') return undefined;
+      const trimmed = value.trim();
+      return trimmed.length ? trimmed : undefined;
+    };
+
+    const preferredStageName = normalizeString(stageName) || normalizeString(incomingProfile?.stageName);
+    if (preferredStageName) {
+      profileData.stageName = preferredStageName;
+      profileData.name = profileData.name || preferredStageName;
+    }
+
+    const profileDescription = normalizeString(description) || normalizeString(incomingProfile?.description);
+    if (profileDescription) {
+      profileData.description = profileDescription;
+      profileData.bio = profileData.bio || profileDescription;
+    }
+
+    const normalizedHeadshot = normalizeString(headshotUrl) || normalizeString(incomingProfile?.headshotUrl);
+    if (normalizedHeadshot) {
+      profileData.headshotUrl = normalizedHeadshot;
+      profileData.picture = profileData.picture || normalizedHeadshot;
+    }
+
+    const normalizedVenmoHandle = normalizeString(venmoHandle) || normalizeString(incomingProfile?.venmoHandle);
+    if (normalizedVenmoHandle) {
+      profileData.venmoHandle = normalizedVenmoHandle.startsWith('@')
+        ? normalizedVenmoHandle
+        : `@${normalizedVenmoHandle}`.replace(/^@@+/, '@');
+    }
+
+    const normalizedVenmoDigits = normalizeString(venmoConfirmDigits) || normalizeString(incomingProfile?.venmoConfirmDigits);
+    if (normalizedVenmoDigits) {
+      profileData.venmoConfirmDigits = normalizedVenmoDigits.replace(/[^0-9]/g, '').slice(-4);
+    }
+
+    const normalizedContactEmail = normalizeString(contactEmail) || normalizeString(incomingProfile?.contactEmail);
+    if (normalizedContactEmail) {
+      profileData.contactEmail = normalizedContactEmail.toLowerCase();
+    }
+
+    const normalizedContactPhone = normalizeString(contactPhone) || normalizeString(incomingProfile?.contactPhone);
+    if (normalizedContactPhone) {
+      profileData.contactPhone = normalizedContactPhone;
+    }
+
     const user = new User({ 
       username, 
       email, 
       password,
       role: 'guest', // Default role
       profile: {
-        ...profile,
-        name: profile?.name || username
+        ...profileData,
+        name: profileData?.name || username
       }
     });
     await user.save();
@@ -120,6 +250,141 @@ router.post('/login', async (ctx) => {
     ctx.status = 500;
     ctx.body = { message: 'An error occurred during login' };
   }
+});
+
+// Phone: request verification code (OTP)
+router.post('/phone/request-code', async (ctx) => {
+  const { phoneNumber } = ctx.request.body || {};
+  const normalized = normalizePhoneNumber(phoneNumber);
+
+  if (!normalized) {
+    ctx.status = 400;
+    ctx.body = { message: 'Valid phoneNumber is required' };
+    return;
+  }
+
+  const now = new Date();
+  const resendCooldownMs = (config.sms?.verification?.resendCooldownSeconds || 30) * 1000;
+  const ttlMs = (config.sms?.verification?.codeTtlMinutes || 10) * 60 * 1000;
+
+  const existing = await PhoneVerification.findOne({ phoneNumber: normalized });
+  if (existing?.lastSentAt && now - existing.lastSentAt < resendCooldownMs) {
+    ctx.status = 429;
+    ctx.body = { message: 'Please wait before requesting another code' };
+    return;
+  }
+
+  const code = generateOtpCode();
+  const codeHash = await bcrypt.hash(code, 10);
+  const expiresAt = new Date(now.getTime() + ttlMs);
+
+  await PhoneVerification.findOneAndUpdate(
+    { phoneNumber: normalized },
+    {
+      phoneNumber: normalized,
+      codeHash,
+      expiresAt,
+      attempts: 0,
+      lastSentAt: now
+    },
+    { upsert: true, new: true, setDefaultsOnInsert: true }
+  );
+
+  await smsService.sendVerificationCode(normalized, code);
+
+  ctx.body =
+    config.nodeEnv !== 'production'
+      ? { message: 'Verification code sent', phoneNumber: normalized, code }
+      : { message: 'Verification code sent', phoneNumber: normalized };
+});
+
+// Phone: login with phone number only (no OTP verification)
+router.post('/phone/login', async (ctx) => {
+  const { phoneNumber } = ctx.request.body || {};
+  const normalized = normalizePhoneNumber(phoneNumber);
+
+  if (!normalized) {
+    ctx.status = 400;
+    ctx.body = { message: 'Valid phoneNumber is required' };
+    return;
+  }
+
+  const user = await findOrCreateUserByPhone(normalized);
+
+  const token = jwt.sign({ userId: user._id }, config.jwt.secret, {
+    expiresIn: config.jwt.expiresIn
+  });
+
+  ctx.body = {
+    token,
+    user: user.toProfile()
+  };
+});
+
+// Phone: verify code and login (auto-create user if needed)
+router.post('/phone/verify', async (ctx) => {
+  const { phoneNumber, code } = ctx.request.body || {};
+  const normalized = normalizePhoneNumber(phoneNumber);
+  const otp = String(code || '').trim();
+
+  if (!normalized) {
+    ctx.status = 400;
+    ctx.body = { message: 'Valid phoneNumber is required' };
+    return;
+  }
+  if (!/^\d{6}$/.test(otp)) {
+    ctx.status = 400;
+    ctx.body = { message: 'Valid 6-digit code is required' };
+    return;
+  }
+
+  const record = await PhoneVerification.findOne({ phoneNumber: normalized });
+  if (!record) {
+    ctx.status = 400;
+    ctx.body = { message: 'No verification code found. Please request a new code.' };
+    return;
+  }
+
+  if (record.expiresAt < new Date()) {
+    await PhoneVerification.deleteOne({ _id: record._id });
+    ctx.status = 400;
+    ctx.body = { message: 'Verification code expired. Please request a new code.' };
+    return;
+  }
+
+  const maxAttempts = config.sms?.verification?.maxAttempts || 5;
+  if ((record.attempts || 0) >= maxAttempts) {
+    ctx.status = 429;
+    ctx.body = { message: 'Too many attempts. Please request a new code.' };
+    return;
+  }
+
+  const ok = await bcrypt.compare(otp, record.codeHash);
+  if (!ok) {
+    record.attempts = (record.attempts || 0) + 1;
+    await record.save();
+    ctx.status = 401;
+    ctx.body = { message: 'Invalid code' };
+    return;
+  }
+
+  await PhoneVerification.deleteOne({ _id: record._id });
+
+  const user = await findOrCreateUserByPhone(normalized);
+  user.profile = {
+    ...user.profile,
+    phoneNumberVerified: true
+  };
+  await user.save();
+
+  const token = jwt.sign({ userId: user._id }, config.jwt.secret, {
+    expiresIn: config.jwt.expiresIn
+  });
+
+  ctx.body = {
+    token,
+    user: user.toProfile()
+  };
 });
 
 // Request password reset

@@ -1,4 +1,5 @@
 import path from "path";
+import fs from "fs";
 import { defineConfig } from "vitest/config";
 import react from "@vitejs/plugin-react-swc";
 import dotenv from "dotenv";
@@ -17,18 +18,32 @@ const defineObject = {
 console.log("**************Define object:", defineObject);
 console.log("**************VITE_PROXY2 value:", defineObject["VITE_PROXY"]);
 
+const devCertPath = path.resolve(__dirname, "certs/dev-cert.pem");
+const devKeyPath = path.resolve(__dirname, "certs/dev-key.pem");
+const hasHttpsCert = fs.existsSync(devCertPath) && fs.existsSync(devKeyPath);
+const httpsOptions = hasHttpsCert
+  ? {
+      cert: fs.readFileSync(devCertPath),
+      key: fs.readFileSync(devKeyPath),
+    }
+  : undefined;
+if (!hasHttpsCert) {
+  console.warn("HTTPS certificates not found; dev server will fall back to HTTP.");
+}
+
 // https://vitejs.dev/config/
 export default defineConfig({
   define: defineObject,
   server: {
     port: 3000,
-    host: 'localhost', // Use localhost instead of 0.0.0.0
-    // https: true, // Using local-ssl-proxy instead
+    host: true,
+    https: httpsOptions,
     proxy: {
       //mock server should have the same endpoint as the eventual live endpoint
       //that way we can just remove "mock/" and switch to live endpoint.
       "/api": {   
-        target: process.env.VITE_PROXY,// || "http://localhost:5000",
+        // Default to local server so dev works out of the box without requiring VITE_PROXY.
+        target: process.env.VITE_PROXY || "http://localhost:5000",
         changeOrigin: true,
         rewrite: (path) => path.replace(/^\/api\/api/, "/api"),
         //rewrite: (path)=> path.replace(/^\/api\/mock/,"api"),
