@@ -28,6 +28,11 @@ const showSchema = new mongoose.Schema({
     enum: ['draft', 'published', 'cancelled'],
     default: 'draft'
   },
+  showType: {
+    type: String,
+    enum: ['private', 'public'],
+    default: 'private'
+  },
   venue: {
     name: {
       type: String,
@@ -65,6 +70,10 @@ const showSchema = new mongoose.Schema({
         index: '2dsphere'
       },
       mapsLink: {
+        type: String,
+        trim: true
+      },
+      placeId: {
         type: String,
         trim: true
       }
@@ -144,6 +153,7 @@ showSchema.methods.toPublic = function() {
     location: this.location,
     description: this.description,
     status: this.status,
+    showType: this.showType,
     venue: this.venue,
     performer: this.performer,
     additionalPerformers: this.additionalPerformers,

@@ -401,11 +401,11 @@ export const Song = () => {
       </FormProvider>
       
       <br />
-      <TextareaDebug value={{ 
+      {/* <TextareaDebug value={{ 
         lastSelectedSong,
         currentFormValues: formMethods.watch(),
         songOptions: songOptions.length > 0 ? `${songOptions.length} options available` : 'No options'
-      }} />
+      }} /> */}
     </>
   );
 };

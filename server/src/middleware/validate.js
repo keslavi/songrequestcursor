@@ -55,8 +55,9 @@ export const schemas = {
       dateFrom: Joi.date().required(),
       dateTo: Joi.date().required(),
       location: Joi.string().required(),
-      description: Joi.string(),
+      description: Joi.string().allow(''),
       status: Joi.string().valid('draft', 'published', 'cancelled').default('draft'),
+  showType: Joi.string().valid('private', 'public').required(),
       additionalPerformers: Joi.array().items(Joi.string()).optional(),
       venue: Joi.object({
         name: Joi.string().allow(''),
@@ -70,7 +71,8 @@ export const schemas = {
         }),
         location: Joi.object({
           coordinates: Joi.array().items(Joi.number()).length(2),
-          mapsLink: Joi.string().allow('')
+          mapsLink: Joi.string().allow(''),
+          placeId: Joi.string().allow('')
         })
       }),
       settings: Joi.object({
@@ -84,8 +86,9 @@ export const schemas = {
       dateFrom: Joi.date(),
       dateTo: Joi.date(),
       location: Joi.string(),
-      description: Joi.string(),
+      description: Joi.string().allow(''),
       status: Joi.string().valid('draft', 'published', 'cancelled'),
+  showType: Joi.string().valid('private', 'public'),
       additionalPerformers: Joi.array().items(Joi.string()).optional(),
       venue: Joi.object({
         name: Joi.string().allow(''),
@@ -99,7 +102,8 @@ export const schemas = {
         }),
         location: Joi.object({
           coordinates: Joi.array().items(Joi.number()).length(2),
-          mapsLink: Joi.string().allow('')
+          mapsLink: Joi.string().allow(''),
+          placeId: Joi.string().allow('')
         })
       }),
       settings: Joi.object({

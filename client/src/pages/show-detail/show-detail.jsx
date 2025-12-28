@@ -665,7 +665,7 @@ export const ShowDetail = () => {
                   <Col size={12}>
                     <Input
                       name="songNotInList"
-                      label="Song Not in List (Search Spotify)"
+                      label="Request a Song not in the list"
                       placeholder="Search for any song on Spotify..."
                       options={spotifySongOptions}
                       allowFreeText={true}

@@ -1,7 +1,7 @@
 import { useEffect, useState, useMemo, useRef, useCallback } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { Box, Button, Chip, Typography, CircularProgress, IconButton, Stack, Card, CardContent, Dialog, DialogTitle, DialogContent, DialogActions, TextField } from "@mui/material";
-import { CheckCircle, Cancel, AttachMoney, AccessTime, People, Close } from "@mui/icons-material";
+import { CheckCircle, Cancel, MusicNote, AccessTime, People, Close } from "@mui/icons-material";
 import { toast } from "react-toastify";
 import api from "@/store/api";
 import { Row, Col, TextareaDebug } from "components";
@@ -563,7 +563,7 @@ export const ShowRequests = () => {
                   {/* Mobile Layout: Row 1 - Tip & Song Title */}
                   <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', mb: 1 }}>
                     <Chip
-                      icon={<AttachMoney />}
+                      icon={<MusicNote />}
                       label={group.totalTip}
                       color={isAddToRequest ? 'warning' : 'success'}
                       size="medium"
@@ -729,7 +729,7 @@ export const ShowRequests = () => {
                       {/* Mobile Layout: Row 1 - Tip & Song Title */}
                       <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', mb: 1 }}>
                         <Chip
-                          icon={<AttachMoney />}
+                          icon={<MusicNote />}
                           label={group.totalTip}
                           color="default"
                           size="medium"
@@ -790,13 +790,7 @@ export const ShowRequests = () => {
           </Box>
         </Col>
       </Row>
-
-      <Row>
-        <Col size={12}>
-          <TextareaDebug value={{ requests, performerSongs, songsById }} />
-        </Col>
-      </Row>
-
+           {/* <TextareaDebug value={{ requests, performerSongs, songsById }} /> */}
       <Row>
         <Col size={12}>
           <Box sx={{ mt: 2, p: 2, bgcolor: '#f5f5f5', borderRadius: 1 }}>
@@ -926,19 +920,19 @@ export const ShowRequests = () => {
               </Typography>
               <Stack spacing={2}>
                 {selectedTipsGroup.requests.map((req, idx) => (
-                  <Box 
-                    key={idx} 
-                    sx={{ 
-                      p: 2, 
-                      border: 1, 
-                      borderColor: 'divider', 
+                  <Box
+                    key={idx}
+                    sx={{
+                      p: 2,
+                      border: 1,
+                      borderColor: 'divider',
                       borderRadius: 1,
                       bgcolor: 'background.default'
                     }}
                   >
                     <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 1 }}>
                       <Chip
-                        icon={<AttachMoney />}
+                        icon={<MusicNote />}
                         label={req.tipAmount}
                         color="success"
                         size="small"

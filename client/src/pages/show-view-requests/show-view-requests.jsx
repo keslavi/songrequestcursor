@@ -17,7 +17,7 @@ import {
   TextField,
   IconButton
 } from "@mui/material";
-import { AttachMoney, AccessTime, People, Close } from "@mui/icons-material";
+import { MusicNote, AccessTime, People, Close } from "@mui/icons-material";
 import { toast } from "react-toastify";
 import dayjs from "dayjs";
 import api from "@/store/api";
@@ -496,7 +496,7 @@ export const ShowViewRequests = () => {
                             <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 1 }}>
                               <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
                                 <Chip
-                                  icon={<AttachMoney />}
+                                  icon={<MusicNote />}
                                   label={group.totalTip}
                                   color={isPlayed ? 'default' : 'success'}
                                   size="small"

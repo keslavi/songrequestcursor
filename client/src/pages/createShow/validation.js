@@ -12,6 +12,7 @@ const schema = yup.object().shape({
   location: yup.string().required("Location is required"),
   description: yup.string().optional(),
   status: yup.string().oneOf(['draft', 'published', 'cancelled'], "Invalid status").required("Status is required"),
+  showType: yup.string().oneOf(['private', 'public'], "Invalid show type").required("Show type is required"),
   additionalPerformers: yup.array().of(yup.string()).optional(),
   venue: yup.object().shape({
     name: yup.string().optional(),

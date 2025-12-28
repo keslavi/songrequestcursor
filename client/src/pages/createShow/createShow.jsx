@@ -17,8 +17,6 @@ import {
   BtnContinueSave,
   GooglePlaceAutocomplete,
 } from "components";
-
-//prettier-ignore
 import {
   resolver,
   errorNotification
@@ -33,14 +31,19 @@ export const CreateShow = () => {
   const [selectedVenue, setSelectedVenue] = useState(null);
   const [isSelectingVenue, setIsSelectingVenue] = useState(false);
 
+  const defaultDateFrom = dayjs().hour(19).minute(0).second(0).millisecond(0);
+  const defaultDateTo = defaultDateFrom.add(3, "hour");
+  const defaultRequestDeadline = defaultDateTo.subtract(30, "minute");
+
   // Initial form values
   const initialFormValues = {
     name: "",
-    dateFrom: dayjs().hour(19).minute(0).second(0).millisecond(0).format("YYYY-MM-DDTHH:mm"), // 7pm today
-    dateTo: dayjs().hour(22).minute(0).second(0).millisecond(0).format("YYYY-MM-DDTHH:mm"), // 10pm today
+    dateFrom: defaultDateFrom.format("YYYY-MM-DDTHH:mm"), // 7pm today
+    dateTo: defaultDateTo.format("YYYY-MM-DDTHH:mm"), // 10pm today
     location: "",
     description: "",
     status: "draft",
+    showType: "private",
     additionalPerformers: [],
     venue: {
       name: "",
@@ -61,7 +64,7 @@ export const CreateShow = () => {
     settings: {
       allowRequests: true,
       maxRequestsPerUser: 1,
-      requestDeadline: null
+      requestDeadline: defaultRequestDeadline.format("YYYY-MM-DDTHH:mm")
     }
   };
 
@@ -83,10 +86,12 @@ export const CreateShow = () => {
     resolver,
     defaultValues: initialFormValues
   });
-  const { watch, setValue, formState } = formMethods;
+  const { watch, setValue, getValues, formState } = formMethods;
 
   // Watch the dateFrom field for changes
   const dateFrom = watch('dateFrom');
+  const dateTo = watch('dateTo');
+  const requestDeadlineDirty = formState?.dirtyFields?.settings?.requestDeadline;
 
   // Effect to handle dateFrom changes - adjust dateTo to be 3 hours later
   useEffect(() => {
@@ -95,6 +100,17 @@ export const CreateShow = () => {
       setValue('dateTo', newDateTo);
     }
   }, [dateFrom, setValue]);
+
+  useEffect(() => {
+    if (!dateTo) return;
+
+    const autoDeadline = dayjs(dateTo).subtract(30, 'minute').format("YYYY-MM-DDTHH:mm");
+    const currentDeadline = getValues('settings.requestDeadline');
+
+    if (!requestDeadlineDirty && currentDeadline !== autoDeadline) {
+      setValue('settings.requestDeadline', autoDeadline, { shouldDirty: false, shouldValidate: true });
+    }
+  }, [dateTo, requestDeadlineDirty, getValues, setValue]);
 
   const locationErrorMessage = formState?.errors?.location?.message;
   const selectedVenueCoordinates = Array.isArray(selectedVenue?.coordinates) ? selectedVenue.coordinates : null;
@@ -132,6 +148,10 @@ export const CreateShow = () => {
       ? details.coordinates
       : [0, 0];
 
+    const venueName = details.name || '';
+    const generatedShowName = venueName ? `Dueling Pianos at ${venueName}` : '';
+    const currentShowName = getValues('name');
+
     setValue('location', details.name || details.formattedAddress || '', { shouldDirty: true, shouldValidate: true });
     setValue('venue.name', details.name || '', { shouldDirty: true });
     setValue('venue.mapUrl', details.mapUrl || '', { shouldDirty: true });
@@ -143,6 +163,10 @@ export const CreateShow = () => {
     setValue('venue.location.mapsLink', details.mapUrl || '', { shouldDirty: true });
     setValue('venue.location.placeId', details.placeId || '', { shouldDirty: true });
     setValue('venue.location.coordinates', coordinates, { shouldDirty: true });
+
+    if (generatedShowName && (!currentShowName || currentShowName.startsWith('Dueling Pianos at '))) {
+      setValue('name', generatedShowName, { shouldDirty: true });
+    }
 
     toast.success('Venue details loaded from Google Maps!');
   };
@@ -171,7 +195,8 @@ export const CreateShow = () => {
         dateTo: values.dateTo.toISOString(), // Convert Date to ISO string
         location: values.location,
         description: values.description || "",
-        status: values.status,
+    status: values.status,
+    showType: values.showType,
         additionalPerformers: values.additionalPerformers || [],
         venue: values.venue, // Include venue data
         settings: {
@@ -308,6 +333,16 @@ export const CreateShow = () => {
                 { key: "cancelled", text: "Cancelled" }
               ]}
               info="Draft shows are not visible to the public"
+            />
+            <Input
+              name="showType"
+              label="Show Type"
+              size={{ xs: 12, xm: 6 }}
+              options={[
+                { key: "private", text: "Private" },
+                { key: "public", text: "Public" }
+              ]}
+              info="Choose whether this show is private or public"
             />
           </Row>
 

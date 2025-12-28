@@ -8,7 +8,7 @@ import {
   Typography,
   Button,
 } from "@mui/material";
-import { AttachMoney, People, AccessTime } from "@mui/icons-material";
+import { MusicNote, People, AccessTime } from "@mui/icons-material";
 
 const ADD_TO_REQUEST_BG_COLOR = "#fff3e0";
 
@@ -62,8 +62,8 @@ export const PriorityRequestCard = ({
         >
           <Box sx={{ display: "flex", alignItems: "center", gap: 1, flexWrap: "wrap" }}>
             <Chip
-              icon={<AttachMoney />}
-              label={`$ ${group.totalTip}`}
+              icon={<MusicNote />}
+              label={group.totalTip}
               color="warning"
               size="small"
               sx={{ fontWeight: 600 }}

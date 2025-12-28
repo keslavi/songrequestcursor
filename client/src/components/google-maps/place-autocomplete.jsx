@@ -105,7 +105,7 @@ export const GooglePlaceAutocomplete = ({
 
     const loader = new Loader({
       apiKey,
-      libraries: ["places"],
+      libraries: ["places", "marker"],
       version: "weekly",
     });
 
