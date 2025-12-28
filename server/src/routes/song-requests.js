@@ -1,8 +1,92 @@
 import Router from '@koa/router';
+import { PassThrough } from 'stream';
 import { Request } from '../models/Request.js';
 import { Show } from '../models/Show.js';
 import { Song } from '../models/Song.js';
 import { User } from '../models/User.js';
+
+const sseClients = new Map();
+
+const getShowKey = (showId) => {
+  if (!showId) return null;
+  return showId.toString();
+};
+
+const registerClient = (showId, client) => {
+  const key = getShowKey(showId);
+  if (!key) return;
+  if (!sseClients.has(key)) {
+    sseClients.set(key, new Set());
+  }
+  sseClients.get(key).add(client);
+};
+
+const removeClient = (showId, client) => {
+  const key = getShowKey(showId);
+  if (!key || !sseClients.has(key)) return;
+
+  const clients = sseClients.get(key);
+  if (!clients) return;
+
+  clients.delete(client);
+
+  if (!clients.size) {
+    sseClients.delete(key);
+  }
+};
+
+const sendEvent = (client, eventName, payload) => {
+  client.stream.write(`event: ${eventName}\n`);
+  client.stream.write(`data: ${JSON.stringify(payload)}\n\n`);
+};
+
+const terminateClient = (showId, client) => {
+  if (client.heartbeat) {
+    clearInterval(client.heartbeat);
+  }
+  try {
+    client.stream.end();
+  } catch (error) {
+    // stream may already be closed
+  }
+  removeClient(showId, client);
+};
+
+const getShowRequestsPayload = async (showId) => {
+  const requests = await Request.find({ show: showId })
+    .populate('user', 'username profile.firstName profile.lastName profile.stageName profile.name')
+    .populate('performerResponses.performer', 'username profile.firstName profile.lastName profile.stageName profile.name')
+    .sort({ createdAt: -1 });
+
+  return requests.map((req) => req.toPublic());
+};
+
+const broadcastRequests = async (showId) => {
+  const key = getShowKey(showId);
+  const clients = key ? sseClients.get(key) : null;
+  if (!clients || !clients.size) {
+    return;
+  }
+
+  try {
+    const payload = await getShowRequestsPayload(showId);
+    const eventData = {
+      requests: payload,
+      emittedAt: new Date().toISOString()
+    };
+
+    for (const client of clients) {
+      try {
+        sendEvent(client, 'requests', eventData);
+      } catch (error) {
+        console.error('Failed to send SSE update, removing client:', error?.message || error);
+        terminateClient(showId, client);
+      }
+    }
+  } catch (error) {
+    console.error('Error broadcasting request updates:', error?.message || error);
+  }
+};
 
 const router = new Router();
 
@@ -114,10 +198,72 @@ router.post('/', async (ctx) => {
 
     ctx.status = 201;
     ctx.body = request.toPublic();
+
+    await broadcastRequests(showId);
   } catch (error) {
     console.error('Error creating song request:', error);
     ctx.status = 500;
     ctx.body = { error: error.message || 'Failed to create song request' };
+  }
+});
+
+router.get('/show/:showId/events', async (ctx) => {
+  const { showId } = ctx.params;
+
+  try {
+    const show = await Show.findById(showId);
+    if (!show) {
+      ctx.status = 404;
+      ctx.body = { error: 'Show not found' };
+      return;
+    }
+
+    ctx.req.setTimeout(0);
+
+    ctx.set({
+      'Content-Type': 'text/event-stream',
+      'Cache-Control': 'no-cache',
+      Connection: 'keep-alive'
+    });
+
+    ctx.status = 200;
+
+    const stream = new PassThrough();
+    ctx.body = stream;
+
+    const client = { stream };
+    registerClient(showId, client);
+
+    // initial comment to keep connection open
+    stream.write(': connected\n\n');
+
+    try {
+      const initialPayload = await getShowRequestsPayload(showId);
+      sendEvent(client, 'bootstrap', {
+        requests: initialPayload,
+        emittedAt: new Date().toISOString()
+      });
+    } catch (error) {
+      console.error('Failed to send initial SSE payload:', error?.message || error);
+    }
+
+    client.heartbeat = setInterval(() => {
+      try {
+        stream.write(': ping\n\n');
+      } catch (error) {
+        terminateClient(showId, client);
+      }
+    }, 30000);
+
+    const cleanup = () => terminateClient(showId, client);
+
+    ctx.req.on('close', cleanup);
+    ctx.req.on('end', cleanup);
+    ctx.res.on('close', cleanup);
+  } catch (error) {
+    console.error('Error establishing request stream:', error?.message || error);
+    ctx.status = 500;
+    ctx.body = { error: 'Failed to establish event stream' };
   }
 });
 
@@ -134,12 +280,9 @@ router.get('/show/:showId', async (ctx) => {
       return;
     }
 
-    const requests = await Request.find({ show: showId })
-      .populate('user', 'username profile.firstName profile.lastName')
-      .populate('performerResponses.performer', 'username profile.firstName profile.lastName')
-      .sort({ createdAt: -1 });
+    const requests = await getShowRequestsPayload(showId);
 
-    ctx.body = requests.map(req => req.toPublic());
+    ctx.body = requests;
   } catch (error) {
     console.error('Error fetching requests:', error);
     ctx.status = 500;
@@ -154,7 +297,7 @@ router.patch('/:id/status', async (ctx) => {
     const { status, performerNotes, songKey } = ctx.request.body;
 
     // Validate status first
-    const validStatuses = ['pending', 'playing', 'played', 'alternate', 'declined'];
+  const validStatuses = ['pending', 'playing', 'add_to_request', 'played', 'alternate', 'declined'];
     if (!validStatuses.includes(status)) {
       ctx.status = 400;
       ctx.body = { error: `Invalid status. Must be one of: ${validStatuses.join(', ')}` };
@@ -187,6 +330,11 @@ router.patch('/:id/status', async (ctx) => {
     }
 
     ctx.body = request.toPublic();
+
+    const showIdForBroadcast = request.show?._id || request.show;
+    if (showIdForBroadcast) {
+      await broadcastRequests(showIdForBroadcast);
+    }
   } catch (error) {
     console.error('Error updating request status:', error);
     ctx.status = 500;
@@ -281,6 +429,11 @@ router.patch('/:id/performer-action', async (ctx) => {
     // Status changes are separate (pending → playing/alternate/declined)
 
     ctx.body = finalRequest.toPublic();
+
+    const showIdForBroadcast = finalRequest.show?._id || finalRequest.show;
+    if (showIdForBroadcast) {
+      await broadcastRequests(showIdForBroadcast);
+    }
   } catch (error) {
     console.error('Error updating performer action:', error);
     ctx.status = 500;

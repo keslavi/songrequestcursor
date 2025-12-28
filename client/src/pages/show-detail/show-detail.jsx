@@ -13,13 +13,17 @@ import {
   DialogTitle,
   DialogContent,
   DialogActions,
-  TextField
+  TextField,
+  Stack,
+  IconButton
 } from "@mui/material";
 import { 
   CalendarToday,
   AccessTime,
   MusicNote,
-  ListAlt
+  ListAlt,
+  People,
+  Close
 } from "@mui/icons-material";
 
 //prettier-ignore
@@ -30,12 +34,23 @@ import {
   useFormProvider,
   Input,
   ShowHeader,
+  PriorityRequestCard,
 } from "components";
 
 import dayjs from "dayjs";
 import api from "@/store/api";
 import { resolver } from "./validation";
 import { store } from "@/store/store";
+
+const STATUS_PRIORITY = {
+  playing: 0,
+  add_to_request: 1,
+  alternate: 2,
+  pending: 3,
+  queued: 4,
+  declined: 5,
+  played: 6
+};
 
 export const ShowDetail = () => {
   const { id } = useParams();
@@ -45,6 +60,12 @@ export const ShowDetail = () => {
   const [songs, setSongs] = useState([]);
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
+  const [priorityGroups, setPriorityGroups] = useState([]);
+  const [priorityModalOpen, setPriorityModalOpen] = useState(false);
+  const [prioritySelection, setPrioritySelection] = useState(null);
+  const [priorityAmount, setPriorityAmount] = useState(5);
+  const [priorityDedication, setPriorityDedication] = useState('');
+  const [isSubmittingPriority, setIsSubmittingPriority] = useState(false);
   
   const user = store.use.user();
 
@@ -119,6 +140,160 @@ export const ShowDetail = () => {
   const [spotifySongOptions, setSpotifySongOptions] = useState([]);
   const [searchTimeout, setSearchTimeout] = useState(null);
 
+  const groupRequestsBySong = useCallback((requestList = []) => {
+    if (!Array.isArray(requestList) || !requestList.length) {
+      return [];
+    }
+
+    const groups = {};
+
+    requestList.forEach((request) => {
+      const songName = request.songs?.[0]?.songname || 'Unknown Song';
+      const requestStatus = request.status || 'pending';
+      const requestPriority = STATUS_PRIORITY[requestStatus] ?? Number.POSITIVE_INFINITY;
+
+      if (!groups[songName]) {
+        groups[songName] = {
+          songName,
+          requests: [],
+          totalTip: 0,
+          count: 0,
+          earliestTime: request.createdAt,
+          status: requestStatus,
+          statusPriority: requestPriority
+        };
+      }
+
+      const group = groups[songName];
+      group.requests.push(request);
+      group.totalTip += request.tipAmount || 0;
+      group.count += 1;
+
+      if (new Date(request.createdAt) < new Date(group.earliestTime)) {
+        group.earliestTime = request.createdAt;
+      }
+
+      if (requestPriority < (group.statusPriority ?? Number.POSITIVE_INFINITY)) {
+        group.statusPriority = requestPriority;
+        group.status = requestStatus;
+      }
+    });
+
+    return Object.values(groups).sort((a, b) => {
+      const statusDifference = (a.statusPriority ?? Number.POSITIVE_INFINITY) - (b.statusPriority ?? Number.POSITIVE_INFINITY);
+      if (statusDifference !== 0) {
+        return statusDifference;
+      }
+      if ((b.totalTip || 0) !== (a.totalTip || 0)) {
+        return (b.totalTip || 0) - (a.totalTip || 0);
+      }
+      return new Date(a.earliestTime) - new Date(b.earliestTime);
+    });
+  }, []);
+
+  const updatePriorityGroups = useCallback((requestList = []) => {
+    const grouped = groupRequestsBySong(requestList);
+    setPriorityGroups(grouped.filter((group) => group.status === 'add_to_request'));
+  }, [groupRequestsBySong]);
+
+  const refreshPriorityRequests = useCallback(async () => {
+    try {
+      const response = await api.get(`/public/song-requests/show/${id}`);
+      const requests = response?.data?.requests || response?.data || [];
+      updatePriorityGroups(requests);
+    } catch (error) {
+      console.error('Failed to load priority requests:', error);
+    }
+  }, [id, updatePriorityGroups]);
+
+  const getStoredPhoneDigits = useCallback(() => {
+    const fallback = typeof window !== 'undefined' ? window.localStorage?.getItem('lastPhoneNumber') : '';
+    return normalizePhoneDigits(guestPhoneNumber || fallback || '');
+  }, [guestPhoneNumber]);
+
+  const openPriorityModal = (group) => {
+    if (!group) return;
+    setPrioritySelection(group);
+    const defaultTip = group.requests?.[0]?.tipAmount || 5;
+    setPriorityAmount(defaultTip);
+    setPriorityDedication('');
+    setPriorityModalOpen(true);
+  };
+
+  const closePriorityModal = () => {
+    setPriorityModalOpen(false);
+    setPrioritySelection(null);
+    setPriorityAmount(5);
+    setPriorityDedication('');
+    setIsSubmittingPriority(false);
+  };
+
+  const handlePrioritySubmit = async () => {
+    if (!prioritySelection) {
+      toast.error('Unable to locate request details');
+      return;
+    }
+
+    const primaryRequest = prioritySelection.requests?.[0];
+    if (!primaryRequest) {
+      toast.error('Unable to locate request details');
+      return;
+    }
+
+    const parsedAmount = Number(priorityAmount);
+    if (Number.isNaN(parsedAmount) || parsedAmount < 1 || parsedAmount > 100) {
+      toast.error('Tip amount must be between 1 and 100');
+      return;
+    }
+
+    const phoneDigits = getStoredPhoneDigits();
+    if (!validatePhone(phoneDigits)) {
+      toast.error('Please add your phone number before contributing.');
+      setPhoneDialogOpen(true);
+      return;
+    }
+
+    const songsPayload = (primaryRequest.songs || []).map((song) => {
+      const payload = {};
+      if (song.songId) payload.songId = song.songId;
+      if (!song.songId) payload.songname = song.songname || prioritySelection.songName;
+      if (song.artist) payload.artist = song.artist;
+      if (song.key) payload.key = song.key;
+      if (song.isCustom) payload.isCustom = song.isCustom;
+      return payload;
+    });
+
+    if (!songsPayload.length) {
+      songsPayload.push({ songname: prioritySelection.songName });
+    }
+
+    setIsSubmittingPriority(true);
+    try {
+      const payload = {
+        showId: id,
+        songs: songsPayload,
+        dedication: priorityDedication || '',
+        tipAmount: Math.round(parsedAmount),
+        requesterPhone: phoneDigits,
+      };
+
+      const response = await api.post('/public/song-requests', payload);
+      const result = response.data;
+
+      if (result?.venmoUrl) {
+        window.open(result.venmoUrl, '_blank');
+      }
+
+      await refreshPriorityRequests();
+      toast.success('Request added!');
+      closePriorityModal();
+    } catch (error) {
+      console.error('Error adding request:', error);
+      toast.error(error.response?.data?.error || 'Failed to add request');
+      setIsSubmittingPriority(false);
+    }
+  };
+
   const loadShowData = useCallback(async () => {
     try {
       setLoading(true);
@@ -189,6 +364,10 @@ export const ShowDetail = () => {
   useEffect(() => {
     loadShowData();
   }, [id, loadShowData]);
+
+  useEffect(() => {
+    refreshPriorityRequests();
+  }, [refreshPriorityRequests]);
   
   // Set current user ID when user changes
   useEffect(() => {
@@ -433,6 +612,23 @@ export const ShowDetail = () => {
                 Request a Song
               </Typography>
 
+              {priorityGroups.length > 0 && (
+                <Box sx={{ mb: 3 }}>
+                  <Typography variant="subtitle1" sx={{ fontWeight: 600, mb: 1 }}>
+                    Priority Requests
+                  </Typography>
+                  <Stack spacing={1.5}>
+                    {priorityGroups.map((group, index) => (
+                      <PriorityRequestCard
+                        key={`${group.songName}-${index}`}
+                        group={group}
+                        onAdd={() => openPriorityModal(group)}
+                      />
+                    ))}
+                  </Stack>
+                </Box>
+              )}
+
               <FormProvider 
                 onSubmit={onSubmit}
                 formMethods={formMethods}
@@ -520,7 +716,21 @@ export const ShowDetail = () => {
                       fullWidth
                       size="large"
                       disabled={submitting}
-                      sx={{ mb: 2 }}
+                      disableElevation
+                      startIcon={<People />}
+                      sx={{
+                        mb: 2,
+                        borderRadius: '999px',
+                        fontWeight: 700,
+                        letterSpacing: '0.08em',
+                        textTransform: 'uppercase',
+                        py: 1.5,
+                        px: 2,
+                        '& .MuiButton-startIcon': {
+                          mr: 1,
+                          color: 'inherit'
+                        }
+                      }}
                     >
                       {submitting ? 'Submitting...' : 'Request Song'}
                     </Button>
@@ -585,6 +795,104 @@ export const ShowDetail = () => {
           </Card>
         </Col>
       </Row>
+
+      <Dialog
+        open={priorityModalOpen}
+        onClose={isSubmittingPriority ? undefined : closePriorityModal}
+        maxWidth="xs"
+        fullWidth
+      >
+        <DialogTitle sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', pb: 1 }}>
+          <Typography variant="h6">Add your request?</Typography>
+          <IconButton
+            edge="end"
+            color="inherit"
+            onClick={closePriorityModal}
+            aria-label="close"
+            size="small"
+            disabled={isSubmittingPriority}
+          >
+            <Close />
+          </IconButton>
+        </DialogTitle>
+        <DialogContent>
+          {prioritySelection && (
+            <Stack spacing={2}>
+              <Box>
+                <Typography variant="subtitle1" sx={{ fontWeight: 600 }}>
+                  {prioritySelection.songName}
+                </Typography>
+                <Typography variant="body2" color="text.secondary">
+                  Current total tips: ${prioritySelection.totalTip}
+                </Typography>
+              </Box>
+              <TextField
+                label="Tip Amount"
+                type="number"
+                value={priorityAmount}
+                onChange={(event) => setPriorityAmount(event.target.value)}
+                inputProps={{ min: 1, max: 100 }}
+                disabled={isSubmittingPriority}
+                fullWidth
+              />
+              <TextField
+                label="Dedication (optional)"
+                multiline
+                minRows={2}
+                value={priorityDedication}
+                onChange={(event) => setPriorityDedication(event.target.value)}
+                disabled={isSubmittingPriority}
+                fullWidth
+              />
+              {(() => {
+                const digits = getStoredPhoneDigits();
+                if (!digits || digits.length < 4) {
+                  return (
+                    <Typography variant="caption" color="error.main">
+                      Add your phone number above before contributing.
+                    </Typography>
+                  );
+                }
+                return (
+                  <Typography variant="caption" color="text.secondary">
+                    Using phone ending in {digits.slice(-4)} for this request.
+                  </Typography>
+                );
+              })()}
+            </Stack>
+          )}
+        </DialogContent>
+        <DialogActions sx={{ px: 3, pb: 2, justifyContent: 'flex-start', gap: 1.5 }}>
+          <Button
+            variant="contained"
+            color="primary"
+            onClick={handlePrioritySubmit}
+            disabled={isSubmittingPriority}
+            startIcon={<People />}
+            disableElevation
+            sx={{
+              borderRadius: '999px',
+              fontWeight: 700,
+              letterSpacing: '0.05em',
+              textTransform: 'none',
+              px: 2,
+              py: 1,
+              '& .MuiButton-startIcon': {
+                color: 'inherit'
+              }
+            }}
+          >
+            {isSubmittingPriority ? 'Submitting…' : 'Add My Request!'}
+          </Button>
+          <Button
+            variant="text"
+            onClick={closePriorityModal}
+            disabled={isSubmittingPriority}
+          >
+            Cancel
+          </Button>
+        </DialogActions>
+      </Dialog>
 
       <Dialog
         open={phoneDialogOpen}

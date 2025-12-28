@@ -7,25 +7,37 @@ import {
   Typography, 
   CircularProgress,
   Chip,
-  Alert
+  Alert,
+  Dialog,
+  DialogTitle,
+  DialogContent,
+  DialogActions,
+  Button,
+  Stack,
+  TextField,
+  IconButton
 } from "@mui/material";
-import { MusicNote, AttachMoney, AccessTime, People } from "@mui/icons-material";
+import { AttachMoney, AccessTime, People, Close } from "@mui/icons-material";
 import { toast } from "react-toastify";
 import dayjs from "dayjs";
 import api from "@/store/api";
-import { Row, Col, ShowHeader, TextareaDebug } from "components";
+import config from "@/config";
+import { Row, Col, ShowHeader, TextareaDebug, PriorityRequestCard } from "components";
+import { store } from "@/store/store";
 
 const STATUS_PRIORITY = {
   playing: 0,
-  alternate: 1,
-  pending: 2,
-  queued: 3,
-  declined: 4,
-  played: 5
+  add_to_request: 1,
+  alternate: 2,
+  pending: 3,
+  queued: 4,
+  declined: 5,
+  played: 6
 };
 
 const STATUS_COLOR_MAP = {
   playing: "success",
+  add_to_request: "warning",
   alternate: "info",
   pending: "warning",
   queued: "info",
@@ -37,11 +49,16 @@ const formatStatusLabel = (status) => {
   if (!status) {
     return "Pending";
   }
-  return status.charAt(0).toUpperCase() + status.slice(1);
+  if (status === 'add_to_request') {
+    return 'Add to this request';
+  }
+  return status
+    .split('_')
+    .map((word) => word.charAt(0).toUpperCase() + word.slice(1))
+    .join(' ');
 };
 
 const PLAYING_BG_COLOR = "#e3f2fd";
-
 export const ShowViewRequests = () => {
   const { id } = useParams();
   const [show, setShow] = useState(null);
@@ -50,6 +67,13 @@ export const ShowViewRequests = () => {
   const [loading, setLoading] = useState(true);
   const [songDetails, setSongDetails] = useState({});
   const songDetailsRef = useRef({});
+  const eventSourceRef = useRef(null);
+  const reconnectTimeoutRef = useRef(null);
+  const [addMeModalOpen, setAddMeModalOpen] = useState(false);
+  const [selectedGroup, setSelectedGroup] = useState(null);
+  const [addMeAmount, setAddMeAmount] = useState(5);
+  const [addMeDedication, setAddMeDedication] = useState('');
+  const [isSubmittingAddMe, setIsSubmittingAddMe] = useState(false);
 
   useEffect(() => {
     songDetailsRef.current = songDetails;
@@ -114,6 +138,104 @@ export const ShowViewRequests = () => {
     return details.link1 || details.link2 || null;
   };
 
+  const getPhoneDigits = () => {
+    const state = typeof store.getState === 'function' ? store.getState() : null;
+    const storedPhone = state?.guestPhoneNumber;
+    const fallbackPhone = typeof window !== 'undefined' ? window.localStorage?.getItem('lastPhoneNumber') : null;
+    return String(storedPhone || fallbackPhone || '').replace(/[^\d]/g, '');
+  };
+
+  const openAddMeModal = (group) => {
+    if (!group) return;
+    setSelectedGroup(group);
+    const defaultTip = group.requests?.[0]?.tipAmount || 5;
+    setAddMeAmount(defaultTip);
+    setAddMeDedication('');
+    setAddMeModalOpen(true);
+  };
+
+  const closeAddMeModal = () => {
+    setAddMeModalOpen(false);
+    setSelectedGroup(null);
+    setAddMeAmount(5);
+    setAddMeDedication('');
+    setIsSubmittingAddMe(false);
+  };
+
+  const handleAddMeSubmit = async () => {
+    if (!selectedGroup) {
+      toast.error('Unable to locate request details');
+      return;
+    }
+
+    const primaryRequest = selectedGroup.requests?.[0];
+    if (!primaryRequest) {
+      toast.error('Unable to locate request details');
+      return;
+    }
+
+    const parsedAmount = Number(addMeAmount);
+    if (Number.isNaN(parsedAmount) || parsedAmount < 1 || parsedAmount > 100) {
+      toast.error('Tip amount must be between 1 and 100');
+      return;
+    }
+
+    const phoneDigits = getPhoneDigits();
+    if (!phoneDigits || phoneDigits.length < 10 || phoneDigits.length > 15) {
+      toast.error('Please add your phone number in the Request a Song tab first.');
+      return;
+    }
+
+    const songsPayload = (primaryRequest.songs || []).map((song) => {
+      const payload = {};
+      if (song.songId) payload.songId = song.songId;
+      if (!song.songId) payload.songname = song.songname || selectedGroup.songName;
+      if (song.artist) payload.artist = song.artist;
+      if (song.key) payload.key = song.key;
+      if (song.isCustom) payload.isCustom = song.isCustom;
+      return payload;
+    });
+
+    if (!songsPayload.length) {
+      songsPayload.push({ songname: selectedGroup.songName });
+    }
+
+    setIsSubmittingAddMe(true);
+    try {
+      const payload = {
+        showId: id,
+        songs: songsPayload,
+        dedication: addMeDedication || '',
+        tipAmount: Math.round(parsedAmount),
+        requesterPhone: phoneDigits,
+      };
+
+      const response = await api.post('/public/song-requests', payload);
+      const result = response.data;
+
+      if (result?.venmoUrl) {
+        window.open(result.venmoUrl, '_blank');
+      }
+
+      if (result?.id) {
+        setRequests((prev) => {
+          const exists = Array.isArray(prev) && prev.some((req) => req.id === result.id);
+          if (exists) {
+            return prev.map((req) => (req.id === result.id ? { ...req, ...result } : req));
+          }
+          return [result, ...(Array.isArray(prev) ? prev : [])];
+        });
+      }
+
+      toast.success('Request added!');
+      closeAddMeModal();
+    } catch (error) {
+      console.error('Error adding request:', error);
+      toast.error(error.response?.data?.error || 'Failed to add request');
+      setIsSubmittingAddMe(false);
+    }
+  };
+
   useEffect(() => {
     if (requests.length) {
       loadSongDetails(requests);
@@ -155,6 +277,79 @@ export const ShowViewRequests = () => {
 
     fetchData();
   }, [id, loadSongDetails]);
+
+  useEffect(() => {
+    if (!id) {
+      return undefined;
+    }
+
+    let isMounted = true;
+
+    const cleanupEventSource = () => {
+      if (eventSourceRef.current) {
+        eventSourceRef.current.close();
+        eventSourceRef.current = null;
+      }
+    };
+
+    const scheduleReconnect = () => {
+      if (!isMounted) {
+        return;
+      }
+      if (reconnectTimeoutRef.current) {
+        return;
+      }
+      reconnectTimeoutRef.current = setTimeout(() => {
+        reconnectTimeoutRef.current = null;
+        connect();
+      }, 5000);
+    };
+
+    const handlePayload = (event) => {
+      try {
+        const payload = JSON.parse(event.data || '{}');
+        if (Array.isArray(payload.requests)) {
+          setRequests(payload.requests);
+        }
+      } catch (error) {
+        console.error('Failed to parse song request SSE payload:', error);
+      }
+    };
+
+    const connect = () => {
+      cleanupEventSource();
+
+      if (!isMounted) {
+        return;
+      }
+
+      try {
+        const eventSource = new EventSource(`${config.api}/public/song-requests/show/${id}/events`);
+        eventSourceRef.current = eventSource;
+        eventSource.addEventListener('bootstrap', handlePayload);
+        eventSource.addEventListener('requests', handlePayload);
+        eventSource.onerror = (error) => {
+          console.warn('Song request SSE error (guest view), retrying…', error);
+          cleanupEventSource();
+          scheduleReconnect();
+        };
+      } catch (error) {
+        console.error('Failed to establish SSE connection (guest view):', error);
+        scheduleReconnect();
+      }
+    };
+
+    connect();
+
+    return () => {
+      isMounted = false;
+      cleanupEventSource();
+      if (reconnectTimeoutRef.current) {
+        clearTimeout(reconnectTimeoutRef.current);
+        reconnectTimeoutRef.current = null;
+      }
+    };
+  }, [id]);
 
   // Group requests by song name and aggregate data
   const groupedRequests = useMemo(() => {
@@ -241,7 +436,7 @@ export const ShowViewRequests = () => {
               <Typography variant="h6" gutterBottom>
                 Song Requests
               </Typography>
-          <TextareaDebug value={{ show, performer, requests, groupedRequests, songDetails }} />
+          {/* <TextareaDebug value={{ show, performer, requests, groupedRequests, songDetails }} /> */}
               
               {requests.length === 0 ? (
                 <Alert severity="info" sx={{ mt: 2 }}>
@@ -259,81 +454,118 @@ export const ShowViewRequests = () => {
 
                   <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
                     {groupedRequests.map((group, index) => {
-                      const lyricsUrl = group.status === 'playing' ? getLyricsLink(group) : null;
+                      const isAddToRequest = group.status === 'add_to_request';
+                      if (isAddToRequest) {
+                        return (
+                          <PriorityRequestCard
+                            key={`priority-${index}`}
+                            group={group}
+                            onAdd={() => openAddMeModal(group)}
+                            helperText="Performer alert: Prioritize this song?"
+                            showActionButton={false}
+                          />
+                        );
+                      }
+
+                      const isPlaying = group.status === 'playing';
+                      const isPlayed = group.status === 'played';
+                      const isPending = group.status === 'pending';
+                      const lyricsUrl = isPlaying ? getLyricsLink(group) : null;
+                      const requestCountLabel = `${group.count} ${group.count === 1 ? 'request' : 'requests'}`;
+
                       return (
-                        <Card 
-                        key={index}
-                        variant="outlined"
-                        sx={{ 
-                          transition: 'box-shadow 0.2s, background-color 0.2s ease-in-out, border-color 0.2s ease-in-out',
-                          bgcolor: group.status === 'playing' ? PLAYING_BG_COLOR : 'background.paper',
-                          borderColor: group.status === 'playing' ? 'primary.light' : 'divider',
-                          '&:hover': {
-                            boxShadow: 2
-                          }
-                        }}
-                      >
-                        <CardContent sx={{ p: 2, '&:last-child': { pb: 2 } }}>
-                          {/* Row 1: Tip Amount | # of Requests | Time (right aligned) */}
-                          <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 1 }}>
-                            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                              <Chip 
-                                icon={<AttachMoney />}
-                                label={group.totalTip}
-                                color="success"
-                                size="small"
-                              />
-                              <Chip 
-                                icon={<People />}
-                                label={`${group.count} ${group.count === 1 ? 'request' : 'requests'}`}
-                                color="primary"
-                                size="small"
-                              />
-                              <Chip
-                                label={formatStatusLabel(group.status)}
-                                color={STATUS_COLOR_MAP[group.status] || 'default'}
-                                size="small"
-                                sx={{ fontWeight: group.status === 'playing' ? 600 : undefined }}
-                              />
-                            </Box>
-                            
-                            <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5, color: 'text.secondary' }}>
-                              <AccessTime sx={{ fontSize: 14 }} />
-                              <Typography variant="caption">
-                                {dayjs(group.earliestTime).format('h:mm A')}
-                              </Typography>
-                            </Box>
-                          </Box>
+                        <Card
+                          key={`request-${index}`}
+                          variant="outlined"
+                          sx={{
+                            transition: 'box-shadow 0.2s, background-color 0.2s ease-in-out, border-color 0.2s ease-in-out, opacity 0.2s ease-in-out',
+                            bgcolor: isPlaying
+                              ? PLAYING_BG_COLOR
+                              : isPlayed
+                                ? 'action.hover'
+                                : 'background.paper',
+                            borderColor: isPlaying ? 'primary.light' : 'divider',
+                            opacity: isPlayed ? 0.7 : 1,
+                            '&:hover': {
+                              boxShadow: isPlayed ? 1 : 2,
+                              bgcolor: isPlayed ? 'action.selected' : undefined
+                            }
+                          }}
+                        >
+                          <CardContent sx={{ p: 2, '&:last-child': { pb: 2 } }}>
+                            <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 1 }}>
+                              <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                                <Chip
+                                  icon={<AttachMoney />}
+                                  label={group.totalTip}
+                                  color={isPlayed ? 'default' : 'success'}
+                                  size="small"
+                                />
+                                <Chip
+                                  icon={<People />}
+                                  label={isPending ? `${requestCountLabel}. add me!` : requestCountLabel}
+                                  color={isPlayed ? 'default' : 'primary'}
+                                  size="small"
+                                  clickable={isPending}
+                                  onClick={() => isPending && openAddMeModal(group)}
+                                  sx={{ fontWeight: isPending ? 600 : undefined, textTransform: isPending ? 'none' : undefined }}
+                                />
+                                  {!isPending && (
+                                    <Chip
+                                      label={formatStatusLabel(group.status)}
+                                      color={STATUS_COLOR_MAP[group.status] || 'default'}
+                                      size="small"
+                                      sx={{ fontWeight: isPlaying ? 600 : undefined }}
+                                    />
+                                  )}
+                              </Box>
 
-                          {/* Row 2: Song Name */}
-                          <Typography variant="h6" sx={{ mb: lyricsUrl ? 0.5 : 1 }}>
-                            {group.songName}
-                          </Typography>
-                          {group.status === 'playing' && lyricsUrl && (
-                            <Typography
-                              component="a"
-                              href={lyricsUrl}
-                              target="_blank"
-                              rel="noopener noreferrer"
-                              variant="body2"
-                              color="primary"
-                              sx={{ display: 'inline-block', mb: 1 }}
-                            >
-                              View Lyrics
-                            </Typography>
-                          )}
-
-                          {/* Dedications/Comments - Indented */}
-                          {group.requests.some(req => req.dedication) && (
-                            <Box sx={{ pl: 2, borderLeft: 2, borderColor: 'primary.light' }}>
-                              {group.requests.filter(req => req.dedication).map((req, idx) => (
-                                <Typography key={idx} variant="body2" color="text.secondary" sx={{ mb: 0.5 }}>
-                                  "{req.dedication}"
+                              <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5, color: 'text.secondary' }}>
+                                <AccessTime sx={{ fontSize: 14 }} />
+                                <Typography variant="caption">
+                                  {dayjs(group.earliestTime).format('h:mm A')}
                                 </Typography>
-                              ))}
+                              </Box>
                             </Box>
-                          )}
-                        </CardContent>
+
+                            <Typography
+                              variant="h6"
+                              sx={{
+                                mb: lyricsUrl ? 0.5 : 1,
+                                color: isPlayed ? 'text.secondary' : 'text.primary'
+                              }}
+                            >
+                              {group.songName}
+                            </Typography>
+                            {lyricsUrl && (
+                              <Typography
+                                component="a"
+                                href={lyricsUrl}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                variant="body2"
+                                color="primary"
+                                sx={{ display: 'inline-block', mb: 1 }}
+                              >
+                                View Lyrics
+                              </Typography>
+                            )}
+
+                            {group.requests.some(req => req.dedication) && (
+                              <Box sx={{ pl: 2, borderLeft: 2, borderColor: 'primary.light' }}>
+                                {group.requests.filter(req => req.dedication).map((req, idx) => (
+                                  <Typography
+                                    key={idx}
+                                    variant="body2"
+                                    color={isPlayed ? 'text.disabled' : 'text.secondary'}
+                                    sx={{ mb: 0.5 }}
+                                  >
+                                    "{req.dedication}"
+                                  </Typography>
+                                ))}
+                              </Box>
+                            )}
+                          </CardContent>
                         </Card>
                       );
                     })}
@@ -344,6 +576,101 @@ export const ShowViewRequests = () => {
           </Card>
         </Col>
       </Row>
+
+      <Dialog
+        open={addMeModalOpen}
+        onClose={isSubmittingAddMe ? undefined : closeAddMeModal}
+        maxWidth="xs"
+        fullWidth
+      >
+        <DialogTitle sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', pb: 1 }}>
+          <Typography variant="h6">I want to hear this sooner!</Typography>
+          <IconButton
+            edge="end"
+            color="inherit"
+            onClick={closeAddMeModal}
+            aria-label="close"
+            size="small"
+            disabled={isSubmittingAddMe}
+          >
+            <Close />
+          </IconButton>
+        </DialogTitle>
+        <DialogContent>
+          {selectedGroup && (
+            <Stack spacing={2}>
+              <Box>
+                <Typography variant="subtitle1" sx={{ fontWeight: 600 }}>
+                  {selectedGroup.songName}
+                </Typography>
+              </Box>
+              <TextField
+                label="Tip Amount"
+                type="number"
+                value={addMeAmount}
+                onChange={(event) => setAddMeAmount(event.target.value)}
+                inputProps={{ min: 1, max: 100 }}
+                disabled={isSubmittingAddMe}
+                fullWidth
+              />
+              <TextField
+                label="Dedication (optional)"
+                multiline
+                minRows={2}
+                value={addMeDedication}
+                onChange={(event) => setAddMeDedication(event.target.value)}
+                disabled={isSubmittingAddMe}
+                fullWidth
+              />
+              {(() => {
+                const digits = getPhoneDigits();
+                if (!digits || digits.length < 4) {
+                  return (
+                    <Typography variant="caption" color="error.main">
+                      Add your phone number from the Request a Song tab before using Add Me.
+                    </Typography>
+                  );
+                }
+                return (
+                  <Typography variant="caption" color="text.secondary">
+                    Using phone ending in {digits.slice(-4)} for this request.
+                  </Typography>
+                );
+              })()}
+            </Stack>
+          )}
+        </DialogContent>
+        <DialogActions sx={{ px: 3, pb: 2, justifyContent: 'flex-start', gap: 1.5 }}>
+          <Button
+            variant="contained"
+            color="primary"
+            onClick={handleAddMeSubmit}
+            disabled={isSubmittingAddMe}
+            startIcon={<People />}
+            disableElevation
+            sx={{
+              borderRadius: '999px',
+              fontWeight: 700,
+              letterSpacing: '0.05em',
+              textTransform: 'none',
+              px: 2,
+              py: 1,
+              '& .MuiButton-startIcon': {
+                color: 'inherit'
+              }
+            }}
+          >
+            {isSubmittingAddMe ? 'Submitting…' : 'Add My Request!'}
+          </Button>
+          <Button
+            variant="text"
+            onClick={closeAddMeModal}
+            disabled={isSubmittingAddMe}
+          >
+            Cancel
+          </Button>
+        </DialogActions>
+      </Dialog>
     </>
   );
 };

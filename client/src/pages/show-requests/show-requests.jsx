@@ -1,23 +1,26 @@
-import { useEffect, useState, useMemo } from "react";
+import { useEffect, useState, useMemo, useRef, useCallback } from "react";
 import { useParams, useNavigate } from "react-router-dom";
-import { Box, Button, Chip, Typography, CircularProgress, IconButton, Stack, Card, CardContent, Dialog, DialogTitle, DialogContent, DialogActions } from "@mui/material";
+import { Box, Button, Chip, Typography, CircularProgress, IconButton, Stack, Card, CardContent, Dialog, DialogTitle, DialogContent, DialogActions, TextField } from "@mui/material";
 import { CheckCircle, Cancel, AttachMoney, AccessTime, People, Close } from "@mui/icons-material";
 import { toast } from "react-toastify";
 import api from "@/store/api";
 import { Row, Col, TextareaDebug } from "components";
 import { store } from "@/store/store";
+import config from "@/config";
 
 const STATUS_PRIORITY = {
   playing: 0,
-  alternate: 1,
-  pending: 2,
-  queued: 3,
-  accepted: 4,
-  declined: 5,
-  played: 6
+  add_to_request: 1,
+  alternate: 2,
+  pending: 3,
+  queued: 4,
+  accepted: 5,
+  declined: 6,
+  played: 7
 };
 
 const PLAYING_BG_COLOR = "#e3f2fd";
+const ADD_TO_REQUEST_BG_COLOR = "#fff3e0";
 
 export const ShowRequests = () => {
   const { showId } = useParams();
@@ -33,8 +36,25 @@ export const ShowRequests = () => {
   const [selectedRequest, setSelectedRequest] = useState(null);
   const [tipsModalOpen, setTipsModalOpen] = useState(false);
   const [selectedTipsGroup, setSelectedTipsGroup] = useState(null);
+  const [addRequestModalOpen, setAddRequestModalOpen] = useState(false);
+  const [addRequestAmount, setAddRequestAmount] = useState(5);
+  const [addRequestDedication, setAddRequestDedication] = useState('');
+  const [isSubmittingAddRequest, setIsSubmittingAddRequest] = useState(false);
+  const [addRequestTarget, setAddRequestTarget] = useState(null);
   const performerSongs = store.use.songs();
   const songsById = store.use.songsById();
+  const eventSourceRef = useRef(null);
+  const reconnectTimeoutRef = useRef(null);
+
+  const sortRequests = useCallback((requestList = []) => {
+    const cloned = Array.isArray(requestList) ? [...requestList] : [];
+    return cloned.sort((a, b) => {
+      if ((b.tipAmount || 0) !== (a.tipAmount || 0)) {
+        return (b.tipAmount || 0) - (a.tipAmount || 0);
+      }
+      return new Date(b.createdAt) - new Date(a.createdAt);
+    });
+  }, []);
 
   // Set current user ID when user changes
   useEffect(() => {
@@ -81,16 +101,7 @@ export const ShowRequests = () => {
 
         // Fetch requests for this show
         const requestsResponse = await api.get(`/public/song-requests/show/${showId}`);
-
-        // Sort by tip (descending), then by time (descending)
-        const sortedRequests = requestsResponse.data.sort((a, b) => {
-          if (b.tipAmount !== a.tipAmount) {
-            return b.tipAmount - a.tipAmount;
-          }
-          return new Date(b.createdAt) - new Date(a.createdAt);
-        });
-
-        setRequests(sortedRequests);
+        setRequests(sortRequests(requestsResponse.data));
       } catch (error) {
         console.error('Error fetching show requests:', error);
         toast.error('Failed to load requests');
@@ -117,6 +128,94 @@ export const ShowRequests = () => {
     }
   }, [performerSongs?.length, isAuthenticated, user?.role]);
 
+  useEffect(() => {
+    if (!showId) {
+      return;
+    }
+
+    const eventsUrl = `${config.api}/public/song-requests/show/${showId}/events`;
+
+    let isMounted = true;
+
+    const cleanupEventSource = () => {
+      if (eventSourceRef.current) {
+        eventSourceRef.current.close();
+        eventSourceRef.current = null;
+      }
+    };
+
+    const scheduleReconnect = () => {
+      if (!isMounted) {
+        return;
+      }
+      if (reconnectTimeoutRef.current) {
+        return;
+      }
+      reconnectTimeoutRef.current = setTimeout(() => {
+        reconnectTimeoutRef.current = null;
+        connect();
+      }, 5000);
+    };
+
+    const handleBootstrap = (event) => {
+      try {
+        const payload = JSON.parse(event.data || '{}');
+        if (Array.isArray(payload.requests)) {
+          setRequests(sortRequests(payload.requests));
+        }
+      } catch (error) {
+        console.error('Failed to parse bootstrap SSE payload:', error);
+      }
+    };
+
+    const handleRequests = (event) => {
+      try {
+        const payload = JSON.parse(event.data || '{}');
+        if (Array.isArray(payload.requests)) {
+          setRequests(sortRequests(payload.requests));
+        }
+      } catch (error) {
+        console.error('Failed to parse requests SSE payload:', error);
+      }
+    };
+
+    const connect = () => {
+      cleanupEventSource();
+
+      if (!isMounted) {
+        return;
+      }
+
+      try {
+        const eventSource = new EventSource(eventsUrl);
+        eventSourceRef.current = eventSource;
+
+        eventSource.addEventListener('bootstrap', handleBootstrap);
+        eventSource.addEventListener('requests', handleRequests);
+
+        eventSource.onerror = (error) => {
+          console.warn('SSE connection error, retrying…', error);
+          cleanupEventSource();
+          scheduleReconnect();
+        };
+      } catch (error) {
+        console.error('Failed to establish SSE connection:', error);
+        scheduleReconnect();
+      }
+    };
+
+    connect();
+
+    return () => {
+      isMounted = false;
+      cleanupEventSource();
+      if (reconnectTimeoutRef.current) {
+        clearTimeout(reconnectTimeoutRef.current);
+        reconnectTimeoutRef.current = null;
+      }
+    };
+  }, [showId, sortRequests]);
+
   const findRequestById = (id) => requests.find((req) => req.id === id);
 
   const resolveSongKeyForRequest = (request) => {
@@ -142,13 +241,7 @@ export const ShowRequests = () => {
 
       // Refresh requests
       const requestsResponse = await api.get(`/public/song-requests/show/${showId}`);
-      const sortedRequests = requestsResponse.data.sort((a, b) => {
-        if (b.tipAmount !== a.tipAmount) {
-          return b.tipAmount - a.tipAmount;
-        }
-        return new Date(b.createdAt) - new Date(a.createdAt);
-      });
-      setRequests(sortedRequests);
+      setRequests(sortRequests(requestsResponse.data));
 
       toast.success(`Request ${action}ed`);
     } catch (error) {
@@ -183,20 +276,79 @@ export const ShowRequests = () => {
 
       // Refresh requests
       const requestsResponse = await api.get(`/public/song-requests/show/${showId}`);
-      const sortedRequests = requestsResponse.data.sort((a, b) => {
-        if (b.tipAmount !== a.tipAmount) {
-          return b.tipAmount - a.tipAmount;
-        }
-        return new Date(b.createdAt) - new Date(a.createdAt);
-      });
-      setRequests(sortedRequests);
+      setRequests(sortRequests(requestsResponse.data));
 
       setStatusModalOpen(false);
       setSelectedRequest(null);
-      toast.success(`Request marked as ${newStatus}`);
+  toast.success(`Request marked as ${formatStatusLabel(newStatus)}`);
     } catch (error) {
       console.error('Error updating request status:', error);
       toast.error('Failed to update request status');
+    }
+  };
+
+  const handleAddRequestSubmit = async () => {
+    if (!addRequestTarget) {
+      toast.error('Select a request first');
+      return;
+    }
+
+    const targetRequest = addRequestTarget.requests?.[0];
+    if (!targetRequest) {
+      toast.error('Unable to locate request details');
+      return;
+    }
+
+    const parsedAmount = Number(addRequestAmount);
+    if (Number.isNaN(parsedAmount) || parsedAmount < 1 || parsedAmount > 100) {
+      toast.error('Tip amount must be between 1 and 100');
+      return;
+    }
+
+    const phoneDigits = getPhoneDigits();
+    if (!phoneDigits || phoneDigits.length < 10 || phoneDigits.length > 15) {
+      toast.error('A valid phone number is required to add to this request');
+      return;
+    }
+
+    const songsPayload = (targetRequest.songs || []).map((song) => {
+      const payload = {};
+      if (song.songId) payload.songId = song.songId;
+      if (!song.songId) payload.songname = song.songname || addRequestTarget.songName;
+      if (song.artist) payload.artist = song.artist;
+      if (song.key) payload.key = song.key;
+      if (song.isCustom) payload.isCustom = song.isCustom;
+      return payload;
+    });
+
+    if (!songsPayload.length) {
+      songsPayload.push({ songname: addRequestTarget.songName });
+    }
+
+    setIsSubmittingAddRequest(true);
+    try {
+      const payload = {
+        showId,
+        songs: songsPayload,
+        dedication: addRequestDedication || '',
+        tipAmount: Math.round(parsedAmount),
+        requesterPhone: phoneDigits,
+      };
+
+      const response = await api.post(`/public/song-requests`, payload);
+      const result = response.data;
+
+      if (result?.venmoUrl) {
+        window.open(result.venmoUrl, '_blank');
+      }
+
+      toast.success('Thanks for adding to this request!');
+      closeAddRequestModal();
+    } catch (error) {
+      console.error('Error adding tip to request:', error);
+      toast.error(error.response?.data?.error || 'Failed to add to this request');
+    } finally {
+      setIsSubmittingAddRequest(false);
     }
   };
 
@@ -220,10 +372,29 @@ export const ShowRequests = () => {
     setSelectedTipsGroup(null);
   };
 
+  const openAddRequestModal = () => {
+    if (!selectedRequest) {
+      return;
+    }
+    setAddRequestAmount(5);
+    setAddRequestDedication('');
+    setAddRequestTarget(selectedRequest);
+    setAddRequestModalOpen(true);
+  };
+
+  const closeAddRequestModal = () => {
+    setAddRequestModalOpen(false);
+    setAddRequestAmount(5);
+    setAddRequestDedication('');
+    setIsSubmittingAddRequest(false);
+    setAddRequestTarget(null);
+  };
+
   const getStatusColor = (status) => {
     switch (status) {
       case 'pending': return 'warning';
       case 'playing': return 'success';
+      case 'add_to_request': return 'warning';
       case 'played': return 'default';
       case 'alternate': return 'info';
       case 'queued': return 'info';
@@ -233,12 +404,32 @@ export const ShowRequests = () => {
     }
   };
 
+  const formatStatusLabel = (status) => {
+    if (!status) {
+      return '';
+    }
+    if (status === 'add_to_request') {
+      return 'Add to this request';
+    }
+    return status
+      .split('_')
+      .map((word) => word.charAt(0).toUpperCase() + word.slice(1))
+      .join(' ');
+  };
+
   const getPerformerResponse = (request, performerId) => {
     if (!request.performerResponses) return null;
     const response = request.performerResponses.find(
       r => r.performer === performerId || r.performer?._id === performerId
     );
     return response?.response || null;
+  };
+
+  const getPhoneDigits = () => {
+    const state = typeof store.getState === 'function' ? store.getState() : null;
+    const storedPhone = state?.guestPhoneNumber;
+    const fallbackPhone = typeof window !== 'undefined' ? window.localStorage?.getItem('lastPhoneNumber') : null;
+    return String(storedPhone || fallbackPhone || '').replace(/[^\d]/g, '');
   };
 
   const getSongKey = (group) => {
@@ -352,13 +543,19 @@ export const ShowRequests = () => {
             {/* Active Requests */}
             {activeRequests.map((group, index) => {
               const songKey = getSongKey(group);
+              const isPlaying = group.status === 'playing';
+              const isAddToRequest = group.status === 'add_to_request';
               return (
               <Card
                 key={`active-${index}`}
                 variant="outlined"
                 sx={{
-                  borderColor: group.status === 'playing' ? 'primary.light' : 'divider',
-                  bgcolor: group.status === 'playing' ? PLAYING_BG_COLOR : 'background.paper',
+                  borderColor: isPlaying ? 'primary.light' : isAddToRequest ? 'warning.light' : 'divider',
+                  bgcolor: isPlaying
+                    ? PLAYING_BG_COLOR
+                    : isAddToRequest
+                      ? ADD_TO_REQUEST_BG_COLOR
+                      : 'background.paper',
                   transition: 'background-color 0.2s ease-in-out, border-color 0.2s ease-in-out'
                 }}
               >
@@ -368,7 +565,7 @@ export const ShowRequests = () => {
                     <Chip
                       icon={<AttachMoney />}
                       label={group.totalTip}
-                      color="success"
+                      color={isAddToRequest ? 'warning' : 'success'}
                       size="medium"
                       onClick={() => openTipsModal(group)}
                       sx={{ fontWeight: 600, cursor: 'pointer' }}
@@ -394,11 +591,11 @@ export const ShowRequests = () => {
                       <Chip
                         icon={<People />}
                         label={`${group.count} ${group.count === 1 ? 'request' : 'requests'}`}
-                        color="primary"
+                        color={isAddToRequest ? 'warning' : 'primary'}
                         size="small"
                       />
                       <Chip
-                        label={group.status}
+                        label={formatStatusLabel(group.status)}
                         color={getStatusColor(group.status)}
                         size="small"
                         onClick={() => openStatusModal(group)}
@@ -610,6 +807,7 @@ export const ShowRequests = () => {
               <Chip label={`Total: ${requests.length}`} />
               <Chip label={`Pending: ${requests.filter(r => r.status === 'pending').length}`} color="warning" />
               <Chip label={`Playing: ${requests.filter(r => r.status === 'playing').length}`} color="success" />
+              <Chip label={`Add to this request: ${requests.filter(r => r.status === 'add_to_request').length}`} color="warning" />
               <Chip label={`Played: ${requests.filter(r => r.status === 'played').length}`} color="default" />
               <Chip label={`Alternate: ${requests.filter(r => r.status === 'alternate').length}`} color="info" />
               <Chip label={`Declined: ${requests.filter(r => r.status === 'declined').length}`} color="error" />
@@ -644,6 +842,14 @@ export const ShowRequests = () => {
               <Typography variant="subtitle1" gutterBottom sx={{ fontWeight: 600 }}>
                 {getDisplaySongName(selectedRequest)}
               </Typography>
+              <Button
+                variant="outlined"
+                color="primary"
+                onClick={openAddRequestModal}
+                sx={{ mb: 2, fontWeight: 600 }}
+              >
+                Click to add request
+              </Button>
               <Typography variant="body2" color="text.secondary" sx={{ mb: 3 }}>
                 Choose the new status for this request
               </Typography>
@@ -656,6 +862,15 @@ export const ShowRequests = () => {
                   fullWidth
                 >
                   Playing
+                </Button>
+                <Button
+                  variant="contained"
+                  color="warning"
+                  size="large"
+                  onClick={() => handleStatusChange(selectedRequest.requests[0].id, 'add_to_request')}
+                  fullWidth
+                >
+                  Add Guests
                 </Button>
                 <Button
                   variant="outlined"
@@ -737,7 +952,14 @@ export const ShowRequests = () => {
                       </Typography>
                     </Box>
                     {req.dedication && (
-                      <Box sx={{ mt: 1, pl: 1, borderLeft: 2, borderColor: 'primary.light' }}>
+                      <Box
+                        sx={{
+                          mt: 1,
+                          pl: 1,
+                          borderLeft: 2,
+                          borderColor: selectedTipsGroup.status === 'add_to_request' ? 'warning.light' : 'primary.light'
+                        }}
+                      >
                         <Typography variant="body2" color="text.secondary">
                           "{req.dedication}"
                         </Typography>
@@ -749,6 +971,86 @@ export const ShowRequests = () => {
             </>
           )}
         </DialogContent>
+      </Dialog>
+
+      {/* Add To Request Modal */}
+      <Dialog
+        open={addRequestModalOpen}
+        onClose={isSubmittingAddRequest ? undefined : closeAddRequestModal}
+        maxWidth="xs"
+        fullWidth
+      >
+        <DialogTitle sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', pb: 1 }}>
+          <Typography variant="h6">Add to this request</Typography>
+          <IconButton
+            edge="end"
+            color="inherit"
+            onClick={closeAddRequestModal}
+            aria-label="close"
+            size="small"
+            disabled={isSubmittingAddRequest}
+          >
+            <Close />
+          </IconButton>
+        </DialogTitle>
+        <DialogContent>
+          <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
+            This song needs a few more requests to be played sooner.
+          </Typography>
+          <Stack spacing={2}>
+            <TextField
+              label="Amount"
+              type="number"
+              value={addRequestAmount}
+              onChange={(event) => setAddRequestAmount(event.target.value)}
+              inputProps={{ min: 1, max: 100 }}
+              fullWidth
+              disabled={isSubmittingAddRequest}
+            />
+            <TextField
+              label="Dedication"
+              multiline
+              minRows={2}
+              value={addRequestDedication}
+              onChange={(event) => setAddRequestDedication(event.target.value)}
+              fullWidth
+              disabled={isSubmittingAddRequest}
+            />
+          </Stack>
+          {(() => {
+            const digits = getPhoneDigits();
+            if (!digits || digits.length < 4) {
+              return (
+                <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mt: 1 }}>
+                  Add your phone number from the request page before contributing to this request.
+                </Typography>
+              );
+            }
+            const last4 = digits.slice(-4);
+            return (
+              <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mt: 1 }}>
+                Using phone ending in {last4} for this contribution.
+              </Typography>
+            );
+          })()}
+        </DialogContent>
+        <DialogActions sx={{ px: 3, pb: 2, pt: 1 }}>
+          <Button
+            variant="text"
+            onClick={closeAddRequestModal}
+            disabled={isSubmittingAddRequest}
+          >
+            No Thanks
+          </Button>
+          <Button
+            variant="contained"
+            color="primary"
+            onClick={handleAddRequestSubmit}
+            disabled={isSubmittingAddRequest}
+          >
+            {isSubmittingAddRequest ? 'Submitting…' : 'Add To This Request?'}
+          </Button>
+        </DialogActions>
       </Dialog>
     </>
   );

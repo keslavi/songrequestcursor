@@ -53,7 +53,7 @@ const requestSchema = new mongoose.Schema({
   },
   status: {
     type: String,
-    enum: ['pending', 'playing', 'played', 'alternate', 'declined'],
+    enum: ['pending', 'playing', 'add_to_request', 'played', 'alternate', 'declined'],
     default: 'pending'
   },
   priority: {
@@ -96,7 +96,7 @@ requestSchema.index({ status: 1, createdAt: -1 });
 
 // Method to check if request can be modified
 requestSchema.methods.canBeModified = function() {
-  return ['pending', 'alternate'].includes(this.status);
+  return ['pending', 'alternate', 'add_to_request'].includes(this.status);
 };
 
 // Method to get songs display text

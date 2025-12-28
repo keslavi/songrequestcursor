@@ -14,5 +14,6 @@ export * from './info-popover';
 export * from './google-maps/google-maps';
 export * from './google-maps/place-autocomplete';
 export * from './show-header';
+export * from './priority-request-card';
 
 
