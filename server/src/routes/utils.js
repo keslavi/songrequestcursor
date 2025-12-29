@@ -2,6 +2,24 @@ import Router from '@koa/router';
 import axios from 'axios';
 import { getPlaceDetailsFromLink } from '../services/googleMaps.js';
 
+const SERVER_ENV_KEYS = [
+  'PORT',
+  'NODE_ENV',
+  'GOOGLE_MAPS_API_KEY',
+  'MONGODB_URI',
+  'JWT_SECRET',
+  'JWT_EXPIRES_IN',
+  'EMAIL_HOST',
+  'EMAIL_PORT',
+  'EMAIL_SECURE',
+  'EMAIL_USER',
+  'EMAIL_PASSWORD',
+  'EMAIL_FROM',
+  'SPOTIFY_CLIENT_ID',
+  'SPOTIFY_CLIENT_SECRET',
+  'CLIENT_URL'
+];
+
 const router = new Router({ prefix: '/api/utils' });
 
 // Resolve shortened URL
@@ -56,6 +74,20 @@ router.get('/place-details', async (ctx) => {
       message: error.message || 'Failed to process Google Maps link.'
     };
   }
+});
+
+// Temporary: expose selected environment variables for troubleshooting
+router.get('/env', async (ctx) => {
+  const serverEnv = SERVER_ENV_KEYS.reduce((acc, key) => {
+    acc[key] = Object.prototype.hasOwnProperty.call(process.env, key)
+      ? process.env[key]
+      : null;
+    return acc;
+  }, {});
+
+  ctx.body = {
+    server: serverEnv
+  };
 });
 
 export default router; 
