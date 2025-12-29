@@ -93,7 +93,7 @@ const router = new Router();
 // Create a new song request (public endpoint - no authentication required)
 router.post('/', async (ctx) => {
   try {
-    const { showId, songs, dedication, tipAmount, requesterPhone } = ctx.request.body;
+    const { showId, songs, dedication, tipAmount, requesterPhone, requesterName } = ctx.request.body;
 
     // Validate show exists and is accepting requests
     const show = await Show.findById(showId);
@@ -177,10 +177,15 @@ router.post('/', async (ctx) => {
     // Create the request
     // If user exists with this phone, link to their account
     // If phone doesn't exist in database, they are a guest (user: null)
+    const sanitizedName = typeof requesterName === 'string'
+      ? requesterName.trim().slice(0, 120)
+      : '';
+
     const request = new Request({
       show: showId,
       user: existingUser ? existingUser._id : null,
       requesterPhone: phoneDigits,
+      requesterName: sanitizedName,
       songs: processedSongs,
       dedication: dedication || '',
       tipAmount: tipAmount,

@@ -149,7 +149,7 @@ export const CreateShow = () => {
       : [0, 0];
 
     const venueName = details.name || '';
-    const generatedShowName = venueName ? `Dueling Pianos at ${venueName}` : '';
+  const generatedShowName = venueName ? `${venueName} Dueling Pianos` : '';
     const currentShowName = getValues('name');
 
     setValue('location', details.name || details.formattedAddress || '', { shouldDirty: true, shouldValidate: true });
@@ -164,7 +164,7 @@ export const CreateShow = () => {
     setValue('venue.location.placeId', details.placeId || '', { shouldDirty: true });
     setValue('venue.location.coordinates', coordinates, { shouldDirty: true });
 
-    if (generatedShowName && (!currentShowName || currentShowName.startsWith('Dueling Pianos at '))) {
+    if (generatedShowName && (!currentShowName || currentShowName.endsWith(' Dueling Pianos'))) {
       setValue('name', generatedShowName, { shouldDirty: true });
     }
 

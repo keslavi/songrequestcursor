@@ -145,6 +145,15 @@ export const ShowViewRequests = () => {
     return String(storedPhone || fallbackPhone || '').replace(/[^\d]/g, '');
   };
 
+  const getGuestName = () => {
+    const state = typeof store.getState === 'function' ? store.getState() : null;
+    const storedName = state?.guestName;
+    const fallbackName = typeof window !== 'undefined'
+      ? window.localStorage?.getItem('lastGuestName') || window.localStorage?.getItem('guestName')
+      : null;
+    return (storedName || fallbackName || '').trim();
+  };
+
   const openAddMeModal = (group) => {
     if (!group) return;
     setSelectedGroup(group);
@@ -186,6 +195,8 @@ export const ShowViewRequests = () => {
       return;
     }
 
+    const guestNameValue = getGuestName();
+
     const songsPayload = (primaryRequest.songs || []).map((song) => {
       const payload = {};
       if (song.songId) payload.songId = song.songId;
@@ -208,6 +219,7 @@ export const ShowViewRequests = () => {
         dedication: addMeDedication || '',
         tipAmount: Math.round(parsedAmount),
         requesterPhone: phoneDigits,
+        ...(guestNameValue ? { requesterName: guestNameValue } : {})
       };
 
       const response = await api.post('/public/song-requests', payload);
@@ -471,7 +483,6 @@ export const ShowViewRequests = () => {
                       const isPlayed = group.status === 'played';
                       const isPending = group.status === 'pending';
                       const lyricsUrl = isPlaying ? getLyricsLink(group) : null;
-                      const requestCountLabel = `${group.count} ${group.count === 1 ? 'request' : 'requests'}`;
 
                       return (
                         <Card
@@ -501,23 +512,24 @@ export const ShowViewRequests = () => {
                                   color={isPlayed ? 'default' : 'success'}
                                   size="small"
                                 />
-                                <Chip
-                                  icon={<People />}
-                                  label={isPending ? `${requestCountLabel}. add me!` : requestCountLabel}
-                                  color={isPlayed ? 'default' : 'primary'}
-                                  size="small"
-                                  clickable={isPending}
-                                  onClick={() => isPending && openAddMeModal(group)}
-                                  sx={{ fontWeight: isPending ? 600 : undefined, textTransform: isPending ? 'none' : undefined }}
-                                />
-                                  {!isPending && (
-                                    <Chip
-                                      label={formatStatusLabel(group.status)}
-                                      color={STATUS_COLOR_MAP[group.status] || 'default'}
-                                      size="small"
-                                      sx={{ fontWeight: isPlaying ? 600 : undefined }}
-                                    />
-                                  )}
+                                {isPending ? (
+                                  <Chip
+                                    icon={<People />}
+                                    label="Add me!"
+                                    color={isPlayed ? 'default' : 'primary'}
+                                    size="small"
+                                    clickable
+                                    onClick={() => openAddMeModal(group)}
+                                    sx={{ fontWeight: 600 }}
+                                  />
+                                ) : (
+                                  <Chip
+                                    label={formatStatusLabel(group.status)}
+                                    color={STATUS_COLOR_MAP[group.status] || 'default'}
+                                    size="small"
+                                    sx={{ fontWeight: isPlaying ? 600 : undefined }}
+                                  />
+                                )}
                               </Box>
 
                               <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5, color: 'text.secondary' }}>
@@ -560,7 +572,7 @@ export const ShowViewRequests = () => {
                                     color={isPlayed ? 'text.disabled' : 'text.secondary'}
                                     sx={{ mb: 0.5 }}
                                   >
-                                    "{req.dedication}"
+                                    {`"${req.dedication}"${req.requesterName ? ` — ${req.requesterName}` : ''}`}
                                   </Typography>
                                 ))}
                               </Box>

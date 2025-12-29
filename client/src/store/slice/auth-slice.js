@@ -29,6 +29,7 @@ const getStoredJSON = (key) => {
 const storedToken = getStoredItem("token");
 const storedUser = getStoredJSON("user");
 const storedGuestPhone = getStoredItem("guestPhoneNumber");
+const storedGuestName = getStoredItem("guestName");
 
 if (storedToken) {
   api.defaults.headers.common['Authorization'] = `Bearer ${storedToken}`;
@@ -99,6 +100,7 @@ export const authSlice = (set, get) => {
     isAuthenticated: Boolean(storedToken && storedUser),
     isAuthChecking: false,
     guestPhoneNumber: storedGuestPhone || null,
+  guestName: storedGuestName || '',
 
     login: async (email, password) => {
       try {
@@ -273,25 +275,45 @@ export const authSlice = (set, get) => {
       clearPerformerSongs();
     },
 
-    setGuestPhoneNumber: (phoneNumber) => {
-      const value = phoneNumber ? String(phoneNumber) : null;
-      if (value) {
-        if (storage) {
-          storage.setItem("guestPhoneNumber", value);
-        }
-      } else {
-        if (storage) {
+    setGuestPhoneNumber: (phoneNumber, guestName = undefined) => {
+      const phoneValue = phoneNumber ? String(phoneNumber) : null;
+      const hasNameArg = guestName !== undefined;
+      const nameValue = hasNameArg && guestName ? String(guestName) : hasNameArg ? '' : undefined;
+
+      if (storage) {
+        if (phoneValue) {
+          storage.setItem("guestPhoneNumber", phoneValue);
+          storage.setItem("lastPhoneNumber", phoneValue);
+        } else {
           storage.removeItem("guestPhoneNumber");
+          storage.removeItem("lastPhoneNumber");
+        }
+
+        if (hasNameArg) {
+          if (nameValue) {
+            storage.setItem("guestName", nameValue);
+            storage.setItem("lastGuestName", nameValue);
+          } else {
+            storage.removeItem("guestName");
+            storage.removeItem("lastGuestName");
+          }
         }
       }
-      set({ guestPhoneNumber: value });
+
+      set({
+        guestPhoneNumber: phoneValue,
+        ...(hasNameArg ? { guestName: nameValue || '' } : {})
+      });
     },
 
     clearGuestPhoneNumber: () => {
       if (storage) {
         storage.removeItem("guestPhoneNumber");
+        storage.removeItem("guestName");
+        storage.removeItem("lastPhoneNumber");
+        storage.removeItem("lastGuestName");
       }
-      set({ guestPhoneNumber: null });
+      set({ guestPhoneNumber: null, guestName: '' });
     },
 
     checkAuth: async () => {

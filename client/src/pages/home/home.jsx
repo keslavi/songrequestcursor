@@ -347,7 +347,7 @@ export const Home = () => {
         </Col>
       </Row>
 
-      {!isAuthenticated && (
+      {/* {!isAuthenticated && (
         <Row>
           <Col size={12}>
             <Card sx={{ mt: 3 }}>
@@ -370,7 +370,7 @@ export const Home = () => {
             </Card>
           </Col>
         </Row>
-      )}
+      )} */}
     </>
   );
 };

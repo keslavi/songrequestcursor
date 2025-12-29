@@ -1,11 +1,11 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { toast } from "react-toastify";
-import { 
-  Card, 
-  CardContent, 
-  Typography, 
-  Box, 
+import {
+  Card,
+  CardContent,
+  Typography,
+  Box,
   Button,
   Alert,
   CircularProgress,
@@ -15,11 +15,10 @@ import {
   DialogActions,
   TextField,
   Stack,
-  IconButton
+  IconButton,
+  SvgIcon
 } from "@mui/material";
-import { 
-  CalendarToday,
-  AccessTime,
+import {
   MusicNote,
   ListAlt,
   People,
@@ -32,6 +31,7 @@ import {
   Row,
   FormProvider,
   useFormProvider,
+  Fieldset,
   Input,
   ShowHeader,
   PriorityRequestCard,
@@ -52,6 +52,16 @@ const STATUS_PRIORITY = {
   played: 6
 };
 
+const VenmoIcon = (props) => (
+  <SvgIcon viewBox="0 0 32 32" {...props}>
+    <path fill="#FFFFFF" d="M16 2a14 14 0 1 1 0 28 14 14 0 0 1 0-28z" />
+    <path
+      d="M24.6 7.4c-.4 2.3-3 11.6-5.2 16.4-1.3 2.8-3 4.2-5.1 4.2-3.4 0-5.2-2.8-5.7-6.1L5.5 8.6 12 7.8l1.5 9c.3 2 .4 2.8 1.1 2.8s1.7-1.4 2.7-3.9c.8-2.3 1.4-4.4 1.4-4.4L24.6 7.4z"
+      fill="#008CFF"
+    />
+  </SvgIcon>
+);
+
 export const ShowDetail = () => {
   const { id } = useParams();
   const navigate = useNavigate();
@@ -66,7 +76,7 @@ export const ShowDetail = () => {
   const [priorityAmount, setPriorityAmount] = useState(5);
   const [priorityDedication, setPriorityDedication] = useState('');
   const [isSubmittingPriority, setIsSubmittingPriority] = useState(false);
-  
+
   const user = store.use.user();
 
   function normalizePhoneDigits(value) {
@@ -80,10 +90,12 @@ export const ShowDetail = () => {
 
   const isAuthenticated = store.use.isAuthenticated();
   const guestPhoneNumber = store.use.guestPhoneNumber();
+  const guestName = store.use.guestName();
   const setGuestPhoneNumber = store.use.setGuestPhoneNumber();
 
   const [phoneDialogOpen, setPhoneDialogOpen] = useState(false);
   const [phoneInput, setPhoneInput] = useState("");
+  const [guestNameInput, setGuestNameInput] = useState("");
   const [pendingSubmitValues, setPendingSubmitValues] = useState(null);
   const [currentUserId, setCurrentUserId] = useState(null);
   const hasAutoPromptedPhone = useRef(false);
@@ -92,10 +104,15 @@ export const ShowDetail = () => {
     return guestPhoneNumber || localStorage.getItem("lastPhoneNumber") || "";
   }, [guestPhoneNumber]);
 
+  const defaultGuestName = useMemo(() => {
+    return guestName || localStorage.getItem("lastGuestName") || "";
+  }, [guestName]);
+
   useEffect(() => {
     // Keep dialog input in sync with stored phone (when opening later)
     setPhoneInput(defaultGuestPhone);
-  }, [defaultGuestPhone]);
+    setGuestNameInput(defaultGuestName);
+  }, [defaultGuestPhone, defaultGuestName]);
 
   const isPhoneRequired = !isAuthenticated && !validatePhone(guestPhoneNumber);
 
@@ -132,13 +149,38 @@ export const ShowDetail = () => {
     }
   });
 
-  const { setValue, watch } = formMethods;
+  const { setValue, watch, setFocus } = formMethods;
   const currentSong = watch('song');
   const currentSongNotInList = watch('songNotInList');
-  
+
+  const clearPerformerSongSelection = useCallback(() => {
+    if (!currentSong) {
+      return;
+    }
+
+    setValue('song', '', { shouldDirty: true, shouldValidate: true });
+  }, [currentSong, setValue]);
+
+  const clearSongNotInList = useCallback(() => {
+    if (!currentSongNotInList) {
+      return;
+    }
+
+    setValue('songNotInList', '', { shouldDirty: true, shouldValidate: true });
+  }, [currentSongNotInList, setValue]);
+
   // State for Spotify search
   const [spotifySongOptions, setSpotifySongOptions] = useState([]);
   const [searchTimeout, setSearchTimeout] = useState(null);
+
+  const handleSongFieldFocus = useCallback(() => {
+    clearSongNotInList();
+    setSpotifySongOptions([]);
+  }, [clearSongNotInList]);
+
+  const handleSongNotInListFocus = useCallback(() => {
+    clearPerformerSongSelection();
+  }, [clearPerformerSongSelection]);
 
   const groupRequestsBySong = useCallback((requestList = []) => {
     if (!Array.isArray(requestList) || !requestList.length) {
@@ -211,6 +253,14 @@ export const ShowDetail = () => {
     return normalizePhoneDigits(guestPhoneNumber || fallback || '');
   }, [guestPhoneNumber]);
 
+  const getStoredGuestName = useCallback(() => {
+    const fallback = typeof window !== 'undefined'
+      ? window.localStorage?.getItem('lastGuestName') || window.localStorage?.getItem('guestName')
+      : '';
+    const nameSource = guestName || fallback || '';
+    return String(nameSource).trim();
+  }, [guestName]);
+
   const openPriorityModal = (group) => {
     if (!group) return;
     setPrioritySelection(group);
@@ -269,12 +319,15 @@ export const ShowDetail = () => {
 
     setIsSubmittingPriority(true);
     try {
+      const guestNameForRequest = getStoredGuestName();
+
       const payload = {
         showId: id,
         songs: songsPayload,
         dedication: priorityDedication || '',
         tipAmount: Math.round(parsedAmount),
         requesterPhone: phoneDigits,
+        ...(guestNameForRequest ? { requesterName: guestNameForRequest } : {})
       };
 
       const response = await api.post('/public/song-requests', payload);
@@ -297,7 +350,7 @@ export const ShowDetail = () => {
   const loadShowData = useCallback(async () => {
     try {
       setLoading(true);
-      
+
       // Load show details
       const showResponse = await api.get(`/public/shows/${id}`);
       const showData = showResponse.data;
@@ -340,14 +393,14 @@ export const ShowDetail = () => {
           // Load songs for the whole show (deduped across performers)
           const songsResponse = await api.get(`/public/songs/show/${id}`);
           const songsData = songsResponse.data;
-          
+
           // Sort songs alphabetically by song name
           const sortedSongs = songsData.sort((a, b) => {
             const nameA = (a.songname || '').toLowerCase();
             const nameB = (b.songname || '').toLowerCase();
             return nameA.localeCompare(nameB);
           });
-          
+
           setSongs(sortedSongs);
         } catch (error) {
           console.warn('Could not load songs:', error);
@@ -368,7 +421,7 @@ export const ShowDetail = () => {
   useEffect(() => {
     refreshPriorityRequests();
   }, [refreshPriorityRequests]);
-  
+
   // Set current user ID when user changes
   useEffect(() => {
     if (isAuthenticated && user?.id) {
@@ -379,7 +432,7 @@ export const ShowDetail = () => {
       setCurrentUserId(null);
     }
   }, [isAuthenticated, user]);
-  
+
   // Debug performer access
   useEffect(() => {
     if (currentUserId && show) {
@@ -387,11 +440,11 @@ export const ShowDetail = () => {
       console.log('  Current user ID:', currentUserId);
       console.log('  Main performer:', show.performer);
       console.log('  Additional performers:', show.additionalPerformers);
-      
-      const isMainPerformer = currentUserId === (show.performer?._id || show.performer) || 
-                              currentUserId.toString() === (show.performer?._id || show.performer)?.toString();
+
+      const isMainPerformer = currentUserId === (show.performer?._id || show.performer) ||
+        currentUserId.toString() === (show.performer?._id || show.performer)?.toString();
       console.log('  Is main performer?', isMainPerformer);
-      
+
       const isAdditionalPerformer = show.additionalPerformers?.some(p => {
         const performerId = p._id || p;
         const match = currentUserId === performerId || currentUserId.toString() === performerId.toString();
@@ -402,17 +455,32 @@ export const ShowDetail = () => {
     }
   }, [currentUserId, show]);
 
+  const focusTipAmount = () => {
+    setTimeout(() => {
+      try {
+        setFocus('tipAmount');
+      } catch (err) {
+        console.warn('Unable to focus tip amount via setFocus:', err);
+      }
+      const tipElement = typeof document !== 'undefined' ? document.getElementById('tipAmount') : null;
+      tipElement?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    }, 0);
+  };
+
   const handleSongClick = (song) => {
-    // Set song name when clicked from list, clear the other field
-    setValue('song', song.songname);
-    setValue('songNotInList', '');
+    if (!song) return;
+
+    setValue('song', song.songname, { shouldDirty: true, shouldValidate: true });
+    setValue('songNotInList', '', { shouldDirty: true, shouldValidate: true });
+    focusTipAmount();
   };
 
   const handleSongSelect = (selectedSong) => {
     if (selectedSong && selectedSong.key) {
       // Selected from autocomplete
-      setValue('song', selectedSong.songname);
-      setValue('songNotInList', '');
+      setValue('song', selectedSong.songname, { shouldDirty: true, shouldValidate: true });
+      setValue('songNotInList', '', { shouldDirty: true, shouldValidate: true });
+      focusTipAmount();
     }
   };
 
@@ -433,7 +501,7 @@ export const ShowDetail = () => {
       try {
         const res = await api.get(`/public/spotify/search?q=${encodeURIComponent(searchTerm)}`);
         const results = res.data || [];
-        
+
         // Format for Input component (needs key + text)
         const options = results.map(item => ({
           key: item.spotifyId,
@@ -441,7 +509,7 @@ export const ShowDetail = () => {
           songname: item.songname,
           artist: item.artist
         }));
-        
+
         setSpotifySongOptions(options);
       } catch (error) {
         console.error('Spotify search error:', error);
@@ -453,32 +521,53 @@ export const ShowDetail = () => {
   };
 
   const handleSpotifySelect = (selectedSong) => {
-    if (selectedSong && selectedSong.key) {
-      // Selected from Spotify, clear the other field
-      const displayText = selectedSong.artist 
+    if (!selectedSong) {
+      setValue('songNotInList', '', { shouldDirty: true, shouldValidate: true });
+      return;
+    }
+
+    if (typeof selectedSong === 'string') {
+      const trimmed = selectedSong.trim();
+      setValue('songNotInList', trimmed, { shouldDirty: true, shouldValidate: true });
+      if (trimmed) {
+        clearPerformerSongSelection();
+        focusTipAmount();
+      }
+      return;
+    }
+
+    if (selectedSong.songname) {
+      const displayText = selectedSong.artist
         ? `${selectedSong.songname} - ${selectedSong.artist}`
         : selectedSong.songname;
-      setValue('songNotInList', displayText);
-      setValue('song', '');
+      setValue('songNotInList', displayText, { shouldDirty: true, shouldValidate: true });
+      clearPerformerSongSelection();
+      focusTipAmount();
     }
   };
 
+  useEffect(() => {
+    if (currentSongNotInList && currentSong) {
+      clearPerformerSongSelection();
+    }
+  }, [currentSongNotInList, currentSong, clearPerformerSongSelection]);
 
 
-  const submitRequest = async (values, phoneDigits) => {
+
+  const submitRequest = async (values, phoneDigits, requesterNameValue = '') => {
     try {
       setSubmitting(true);
 
       // Validate that exactly one song field is provided
       const hasSong = values.song && values.song.trim();
       const hasSongNotInList = values.songNotInList && values.songNotInList.trim();
-      
+
       if (!hasSong && !hasSongNotInList) {
         toast.error('Please select or enter a song');
         setSubmitting(false);
         return;
       }
-      
+
       if (hasSong && hasSongNotInList) {
         toast.error('Please select only one song (either from list or not in list)');
         setSubmitting(false);
@@ -487,11 +576,13 @@ export const ShowDetail = () => {
 
       // Use whichever field has a value
       const songname = hasSong ? values.song.trim() : values.songNotInList.trim();
-      
+
       // Format song for API - single song now
       const formattedSongs = [{
         songname: songname
       }];
+
+      const sanitizedName = typeof requesterNameValue === 'string' ? requesterNameValue.trim() : '';
 
       const requestData = {
         showId: id,
@@ -501,16 +592,20 @@ export const ShowDetail = () => {
         ...(phoneDigits ? { requesterPhone: phoneDigits } : {})
       };
 
+      if (sanitizedName) {
+        requestData.requesterName = sanitizedName;
+      }
+
       const response = await api.post(`/public/song-requests`, requestData);
       const result = response.data;
-      
+
       // Open Venmo link
       if (result.venmoUrl) {
         window.open(result.venmoUrl, '_blank');
       }
 
       toast.success('Song request submitted successfully!');
-      
+
       // Reset form
       setValue('song', '');
       setValue('songNotInList', '');
@@ -534,7 +629,8 @@ export const ShowDetail = () => {
         setPhoneDialogOpen(true);
         return;
       }
-      await submitRequest(values, digits);
+      const guestNameForRequest = getStoredGuestName();
+      await submitRequest(values, digits, guestNameForRequest);
       return;
     }
 
@@ -563,15 +659,18 @@ export const ShowDetail = () => {
       <Row>
         <Col size={12}>
           <ShowHeader show={show} performer={performer} />
-          
+        </Col>
+      </Row>
+      <Row>
+        <Col size={12}>
           {/* Show "Performer View Requests" button if user is the performer or an additional performer */}
           {currentUserId && show && (
-            (currentUserId === (show.performer?._id || show.performer) || 
-             currentUserId.toString() === (show.performer?._id || show.performer)?.toString() ||
-             show.additionalPerformers?.some(p => {
-               const performerId = p._id || p;
-               return currentUserId === performerId || currentUserId.toString() === performerId.toString();
-             })) && (
+            (currentUserId === (show.performer?._id || show.performer) ||
+              currentUserId.toString() === (show.performer?._id || show.performer)?.toString() ||
+              show.additionalPerformers?.some(p => {
+                const performerId = p._id || p;
+                return currentUserId === performerId || currentUserId.toString() === performerId.toString();
+              })) && (
               <Box sx={{ mb: 2 }}>
                 <Button
                   variant="outlined"
@@ -585,21 +684,6 @@ export const ShowDetail = () => {
               </Box>
             )
           )}
-        </Col>
-      </Row>
-
-      <Row>
-        <Col size={6}>
-          <Typography variant="body2" color="text.secondary" sx={{ display: 'flex', alignItems: 'center', mb: 1 }}>
-            <CalendarToday sx={{ mr: 1, fontSize: 16 }} />
-            {dayjs(show.dateFrom).format('MMM DD, YYYY')}
-          </Typography>
-        </Col>
-        <Col size={6}>
-          <Typography variant="body2" color="text.secondary" sx={{ display: 'flex', alignItems: 'center', mb: 1 }}>
-            <AccessTime sx={{ mr: 1, fontSize: 16 }} />
-            {dayjs(show.dateFrom).format('h:mm A')}
-          </Typography>
         </Col>
       </Row>
 
@@ -629,121 +713,126 @@ export const ShowDetail = () => {
                 </Box>
               )}
 
-              <FormProvider 
+              <FormProvider
                 onSubmit={onSubmit}
                 formMethods={formMethods}
               >
-                <Row>
-                  <Col size={12}>
-                    <Input
-                      name="song"
-                      label="Song from Performer's List"
-                      placeholder="Select from list below or type..."
-                      options={songs}
-                      allowFreeText={true}
-                      onChange={(event, newValue) => handleSongSelect(newValue)}
-                      disabled={!!currentSongNotInList}
-                      size={12}
-                    />
-                    {currentSong && !songs.find(s => s.songname === currentSong) && (
-                      <Typography variant="caption" color="warning.main" sx={{ mt: 0.5, display: 'block' }}>
-                        ⚠️ Custom song (not in performer's list)
+                <Fieldset>
+                  <Row>
+                    <Col size={12}>
+                      <Input
+                        name="song"
+                        label="Song from Performer's List"
+                        placeholder="Select from list below or type..."
+                        options={songs}
+                        allowFreeText={true}
+                        onChange={(event, newValue) => handleSongSelect(newValue)}
+                        onFocus={handleSongFieldFocus}
+                        size={12}
+                      />
+                      {currentSong && !songs.find(s => s.songname === currentSong) && (
+                        <Typography variant="caption" color="warning.main" sx={{ mt: 0.5, display: 'block' }}>
+                          ⚠️ Custom song (not in performer's list)
+                        </Typography>
+                      )}
+                    </Col>
+                  </Row>
+
+                  <Row>
+                    <Col size={12}>
+                      <Typography variant="body2" color="text.secondary" sx={{ textAlign: 'center', my: 1 }}>
+                        OR
                       </Typography>
-                    )}
-                  </Col>
-                </Row>
+                    </Col>
+                  </Row>
 
-                <Row>
-                  <Col size={12}>
-                    <Typography variant="body2" color="text.secondary" sx={{ textAlign: 'center', my: 1 }}>
-                      OR
-                    </Typography>
-                  </Col>
-                </Row>
+                  <Row>
+                    <Col size={12}>
+                      <Input
+                        name="songNotInList"
+                        label="Request a Song not in the list"
+                        placeholder="Search for any song on Spotify..."
+                        options={spotifySongOptions}
+                        allowFreeText={true}
+                        onChange={(event, newValue) => handleSpotifySelect(newValue)}
+                        onInputChange={(event, value) => {
+                          if (event && event.type === 'change') {
+                            if (value && value.trim()) {
+                              clearPerformerSongSelection();
+                            }
+                            handleSpotifySearch(value);
+                          }
+                        }}
+                        onFocus={handleSongNotInListFocus}
+                        size={12}
+                      />
+                      {currentSongNotInList && (
+                        <Typography variant="caption" color="info.main" sx={{ mt: 0.5, display: 'block' }}>
+                          🎵 Song from Spotify (not in performer's list)
+                        </Typography>
+                      )}
+                    </Col>
+                  </Row>
+                </Fieldset>
+                <Fieldset>
+                  <Row>
+                    <Col size={12}>
+                      <Input
+                        name="tipAmount"
+                        label="Amount"
+                        type="number"
+                        size={12}
+                      />
+                    </Col>
+                  </Row>
+                  <Row>
+                    <Col size={12}>
+                      <Input
+                        name="dedication"
+                        label="Dedication/Comments (optional)"
+                        // placeholder="Who is this request for?"
+                        size={12}
+                      />
+                    </Col>
+                  </Row>
+                  <Row>
+                    <Col size={12}>
+                      <Button
+                        type="submit"
+                        variant="contained"
+                        fullWidth
+                        size="large"
+                        disabled={submitting}
+                        disableElevation
+                        startIcon={<People />}
+                        endIcon={<VenmoIcon sx={{ fontSize: 20 }} />}
+                        sx={{
+                          mb: 2,
+                          borderRadius: '999px',
+                          fontWeight: 700,
+                          letterSpacing: '0.08em',
+                          textTransform: 'uppercase',
+                          py: 1.5,
+                          px: 2,
+                          '& .MuiButton-startIcon': {
+                            mr: 1,
+                            color: 'inherit'
+                          }
+                        }}
+                      >
+                        {submitting ? 'Submitting...' : 'Request Song'}
+                      </Button>
+                    </Col>
+                  </Row>
 
-                <Row>
-                  <Col size={12}>
-                    <Input
-                      name="songNotInList"
-                      label="Request a Song not in the list"
-                      placeholder="Search for any song on Spotify..."
-                      options={spotifySongOptions}
-                      allowFreeText={true}
-                      onChange={(event, newValue) => handleSpotifySelect(newValue)}
-                      onInputChange={(event, value) => {
-                        if (event && event.type === 'change') {
-                          handleSpotifySearch(value);
-                        }
-                      }}
-                      disabled={!!currentSong}
-                      size={12}
-                    />
-                    {currentSongNotInList && (
-                      <Typography variant="caption" color="info.main" sx={{ mt: 0.5, display: 'block' }}>
-                        🎵 Song from Spotify (not in performer's list)
+                  <Row>
+                    <Col size={12}>
+                      <Typography variant="caption" color="text.secondary" align="center" display="block">
+                        Clicking &quot;Request Song&quot; will open Venmo to complete your payment
                       </Typography>
-                    )}
-                  </Col>
-                </Row>
-
-                <Row>
-                  <Col size={12}>
-                    <Input
-                      name="dedication"
-                      label="Dedication/Comments (optional)"
-                      // placeholder="Who is this request for?"
-                      size={12}
-                    />
-                  </Col>
-                </Row>
-
-                <Row>
-                  <Col size={12}>
-                    <Input
-                      name="tipAmount"
-                      label="Tip Amount"
-                      type="number"
-                      size={12}
-                    />
-                  </Col>
-                </Row>
-
-                <Row>
-                  <Col size={12}>
-                    <Button
-                      type="submit"
-                      variant="contained"
-                      fullWidth
-                      size="large"
-                      disabled={submitting}
-                      disableElevation
-                      startIcon={<People />}
-                      sx={{
-                        mb: 2,
-                        borderRadius: '999px',
-                        fontWeight: 700,
-                        letterSpacing: '0.08em',
-                        textTransform: 'uppercase',
-                        py: 1.5,
-                        px: 2,
-                        '& .MuiButton-startIcon': {
-                          mr: 1,
-                          color: 'inherit'
-                        }
-                      }}
-                    >
-                      {submitting ? 'Submitting...' : 'Request Song'}
-                    </Button>
-                  </Col>
-                </Row>
-
-                <Row>
-                  <Col size={12}>
-                    <Typography variant="caption" color="text.secondary" align="center" display="block">
-                      Clicking &quot;Request Song&quot; will open Venmo to complete your payment
-                    </Typography>
-                  </Col>
-                </Row>
+                    </Col>
+                  </Row>
+                </Fieldset>
               </FormProvider>
 
               {/* Song List */}
@@ -755,8 +844,8 @@ export const ShowDetail = () => {
                   <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
                     Click a song to add it to your request
                   </Typography>
-                  <Box sx={{ 
-                    maxHeight: '400px', 
+                  <Box sx={{
+                    maxHeight: '400px',
                     overflowY: 'auto',
                     border: '1px solid',
                     borderColor: 'divider',
@@ -925,6 +1014,14 @@ export const ShowDetail = () => {
                 : (validatePhone(phoneInput) ? " " : "Enter a valid phone number")
             }
           />
+          <TextField
+            label="Your name (optional)"
+            value={guestNameInput}
+            onChange={(event) => setGuestNameInput(event.target.value)}
+            fullWidth
+            sx={{ mt: 2 }}
+            inputProps={{ autoComplete: "name" }}
+          />
         </DialogContent>
         <DialogActions>
           {!!navigator?.contacts?.select && (
@@ -954,13 +1051,15 @@ export const ShowDetail = () => {
                 toast.error("Please enter a valid phone number");
                 return;
               }
-              setGuestPhoneNumber(digits);
+              const trimmedName = guestNameInput.trim();
+              setGuestPhoneNumber(digits, trimmedName);
+              setGuestNameInput(trimmedName);
               setPhoneDialogOpen(false);
 
               if (pendingSubmitValues) {
                 const values = pendingSubmitValues;
                 setPendingSubmitValues(null);
-                await submitRequest(values, digits);
+                await submitRequest(values, digits, trimmedName);
               }
             }}
             disabled={submitting}

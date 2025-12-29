@@ -1,7 +1,7 @@
 import { useEffect, useState, useMemo, useRef, useCallback } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { Box, Button, Chip, Typography, CircularProgress, IconButton, Stack, Card, CardContent, Dialog, DialogTitle, DialogContent, DialogActions, TextField } from "@mui/material";
-import { CheckCircle, Cancel, MusicNote, AccessTime, People, Close } from "@mui/icons-material";
+import { CheckCircle, Cancel, MusicNote, AccessTime, Close } from "@mui/icons-material";
 import { toast } from "react-toastify";
 import api from "@/store/api";
 import { Row, Col, TextareaDebug } from "components";
@@ -327,12 +327,14 @@ export const ShowRequests = () => {
 
     setIsSubmittingAddRequest(true);
     try {
+      const guestNameValue = getGuestName();
       const payload = {
         showId,
         songs: songsPayload,
         dedication: addRequestDedication || '',
         tipAmount: Math.round(parsedAmount),
         requesterPhone: phoneDigits,
+        ...(guestNameValue ? { requesterName: guestNameValue } : {})
       };
 
       const response = await api.post(`/public/song-requests`, payload);
@@ -390,26 +392,12 @@ export const ShowRequests = () => {
     setAddRequestTarget(null);
   };
 
-  const getStatusColor = (status) => {
-    switch (status) {
-      case 'pending': return 'warning';
-      case 'playing': return 'success';
-      case 'add_to_request': return 'warning';
-      case 'played': return 'default';
-      case 'alternate': return 'info';
-      case 'queued': return 'info';
-      case 'accepted': return 'success';
-      case 'declined': return 'error';
-      default: return 'default';
-    }
-  };
-
   const formatStatusLabel = (status) => {
     if (!status) {
       return '';
     }
     if (status === 'add_to_request') {
-      return 'Add to this request';
+      return 'Performer Requesting';
     }
     return status
       .split('_')
@@ -430,6 +418,15 @@ export const ShowRequests = () => {
     const storedPhone = state?.guestPhoneNumber;
     const fallbackPhone = typeof window !== 'undefined' ? window.localStorage?.getItem('lastPhoneNumber') : null;
     return String(storedPhone || fallbackPhone || '').replace(/[^\d]/g, '');
+  };
+
+  const getGuestName = () => {
+    const state = typeof store.getState === 'function' ? store.getState() : null;
+    const storedName = state?.guestName;
+    const fallbackName = typeof window !== 'undefined'
+      ? window.localStorage?.getItem('lastGuestName') || window.localStorage?.getItem('guestName')
+      : null;
+    return (storedName || fallbackName || '').trim();
   };
 
   const getSongKey = (group) => {
@@ -545,6 +542,7 @@ export const ShowRequests = () => {
               const songKey = getSongKey(group);
               const isPlaying = group.status === 'playing';
               const isAddToRequest = group.status === 'add_to_request';
+              const pointsSummary = `${group.totalTip} ${group.totalTip === 1 ? 'point' : 'points'}, ${group.count} ${group.count === 1 ? 'request' : 'requests'}`;
               return (
               <Card
                 key={`active-${index}`}
@@ -564,8 +562,8 @@ export const ShowRequests = () => {
                   <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', mb: 1 }}>
                     <Chip
                       icon={<MusicNote />}
-                      label={group.totalTip}
-                      color={isAddToRequest ? 'warning' : 'success'}
+                      label={pointsSummary}
+                      color= "success" //{isAddToRequest ? 'warning' : 'success'}
                       size="medium"
                       onClick={() => openTipsModal(group)}
                       sx={{ fontWeight: 600, cursor: 'pointer' }}
@@ -589,14 +587,8 @@ export const ShowRequests = () => {
                   <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 1 }}>
                     <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
                       <Chip
-                        icon={<People />}
-                        label={`${group.count} ${group.count === 1 ? 'request' : 'requests'}`}
-                        color={isAddToRequest ? 'warning' : 'primary'}
-                        size="small"
-                      />
-                      <Chip
                         label={formatStatusLabel(group.status)}
-                        color={getStatusColor(group.status)}
+                        color="primary"
                         size="small"
                         onClick={() => openStatusModal(group)}
                         sx={{ cursor: 'pointer', fontWeight: 600 }}
@@ -710,6 +702,30 @@ export const ShowRequests = () => {
                     )}
                   </Box>
 
+                  {group.requests.some(req => req.dedication) && (
+                    <Box
+                      sx={{
+                        mt: 1.5,
+                        pl: 2,
+                        borderLeft: 2,
+                        borderColor: isAddToRequest ? 'warning.light' : 'primary.light'
+                      }}
+                    >
+                      {group.requests
+                        .filter(req => req.dedication)
+                        .map((req, idx) => (
+                          <Typography
+                            key={idx}
+                            variant="body2"
+                            color="text.secondary"
+                            sx={{ mb: 0.5 }}
+                          >
+                            {`"${req.dedication}"${req.requesterName ? ` — ${req.requesterName}` : ''}`}
+                          </Typography>
+                        ))}
+                    </Box>
+                  )}
+
                 </CardContent>
               </Card>
             );
@@ -723,6 +739,7 @@ export const ShowRequests = () => {
                 </Typography>
                 {playedRequests.map((group, index) => {
                   const songKey = getSongKey(group);
+                  const pointsSummary = `${group.totalTip} ${group.totalTip === 1 ? 'point' : 'points'}, ${group.count} ${group.count === 1 ? 'request' : 'requests'}`;
                   return (
                   <Card key={`played-${index}`} variant="outlined" sx={{ bgcolor: 'action.hover', opacity: 0.7 }}>
                     <CardContent sx={{ p: 2, '&:last-child': { pb: 2 } }}>
@@ -730,7 +747,7 @@ export const ShowRequests = () => {
                       <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', mb: 1 }}>
                         <Chip
                           icon={<MusicNote />}
-                          label={group.totalTip}
+                          label={pointsSummary}
                           color="default"
                           size="medium"
                           onClick={() => openTipsModal(group)}
@@ -749,16 +766,6 @@ export const ShowRequests = () => {
                             />
                           )}
                         </Box>
-                      </Box>
-
-                      {/* Mobile Layout: Row 2 - Request Count */}
-                      <Box sx={{ display: 'flex', alignItems: 'center', mb: 1 }}>
-                        <Chip
-                          icon={<People />}
-                          label={`${group.count} ${group.count === 1 ? 'request' : 'requests'}`}
-                          color="default"
-                          size="small"
-                        />
                       </Box>
 
                       {/* Mobile Layout: Row 3 - Time */}
@@ -781,6 +788,30 @@ export const ShowRequests = () => {
                           size="small"
                         />
                       </Box>
+
+                      {group.requests.some(req => req.dedication) && (
+                        <Box
+                          sx={{
+                            mt: 1.5,
+                            pl: 2,
+                            borderLeft: 2,
+                            borderColor: 'primary.light'
+                          }}
+                        >
+                          {group.requests
+                            .filter(req => req.dedication)
+                            .map((req, idx) => (
+                              <Typography
+                                key={idx}
+                                variant="body2"
+                                color="text.secondary"
+                                sx={{ mb: 0.5 }}
+                              >
+                                {`"${req.dedication}"${req.requesterName ? ` — ${req.requesterName}` : ''}`}
+                              </Typography>
+                            ))}
+                        </Box>
+                      )}
                     </CardContent>
                   </Card>
                 );
@@ -955,7 +986,7 @@ export const ShowRequests = () => {
                         }}
                       >
                         <Typography variant="body2" color="text.secondary">
-                          "{req.dedication}"
+                          {`"${req.dedication}"${req.requesterName ? ` — ${req.requesterName}` : ''}`}
                         </Typography>
                       </Box>
                     )}

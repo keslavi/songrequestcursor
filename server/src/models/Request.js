@@ -17,6 +17,11 @@ const requestSchema = new mongoose.Schema({
     trim: true,
     default: null
   },
+  requesterName: {
+    type: String,
+    trim: true,
+    default: ''
+  },
   songs: [{
     songId: {
       type: mongoose.Schema.Types.ObjectId,
@@ -157,6 +162,7 @@ requestSchema.methods.toPublic = function() {
     completedAt: this.completedAt,
     songsDisplayText: this.getSongsDisplayText(),
     venmoUrl: this.getVenmoUrl(),
+  requesterName: this.requesterName || '',
     createdAt: this.createdAt,
     updatedAt: this.updatedAt
   };
