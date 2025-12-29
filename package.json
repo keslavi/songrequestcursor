@@ -1,0 +1,16 @@
+{
+  "name": "songrequestcursor",
+  "private": true,
+  "type": "module",
+  "workspaces": [
+    "client",
+    "server"
+  ],
+  "scripts": {
+    "build": "npm run build:client && npm run sync-static",
+    "build:client": "npm run build --workspace client",
+    "sync-static": "node scripts/sync-client-build.mjs",
+    "start": "npm run start:prod --workspace server",
+    "dev": "npm run dev --workspace server"
+  }
+}

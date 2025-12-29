@@ -1,0 +1,78 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Opening Venmo…</title>
+  <style>
+    body {
+      margin: 0;
+      padding: 2rem;
+      font-family: system-ui, sans-serif;
+      background-color: #f9f9f9;
+      color: #333;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-direction: column;
+      min-height: 100vh;
+      text-align: center;
+    }
+    .logo {
+      max-width: 120px;
+      margin-bottom: 1rem;
+    }
+    .message {
+      font-size: 1.2rem;
+    }
+    #back-button {
+      display: none;
+      margin-top: 2rem;
+      padding: 0.6rem 1.2rem;
+      font-size: 1rem;
+      border: none;
+      background-color: #0077cc;
+      color: white;
+      border-radius: 5px;
+      cursor: pointer;
+    }
+    #back-button:hover {
+      background-color: #005fa3;
+    }
+  </style>
+</head>
+<body>
+  <img class="logo" src="/wp-content/uploads/your-logo.png" alt="Your Logo" />
+  <div class="message" id="status-message">
+    Redirecting you to Venmo...
+    <br />
+    <small>If nothing happens, the link may be incorrect.</small>
+  </div>
+
+  <button id="back-button" onclick="history.back()">Return to Previous Page</button>
+
+  <script>
+    function getQueryParam(name) {
+      const params = new URLSearchParams(window.location.search);
+      return params.get(name);
+    }
+
+    const song = getQueryParam("song");
+
+    if (song) {
+      const baseUrl = "https://venmo.com/GoEvenSteven?txn=pay&amount=5&note=7169:confirm..." + encodeURIComponent(song);
+
+      setTimeout(() => {
+        window.location.href = baseUrl;
+
+        // Show back button after 5s
+        setTimeout(() => {
+          document.getElementById("back-button").style.display = "inline-block";
+        }, 5000);
+      }, 100);
+    } else {
+      document.getElementById("status-message").innerHTML = "Missing song details in the URL.";
+    }
+  </script>
+</body>
+</html>
