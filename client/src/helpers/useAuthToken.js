@@ -1,5 +1,6 @@
 import { useAuth0 } from '@auth0/auth0-react';
 import { useCallback } from 'react';
+import config from '@/config';
 
 export const useAuthToken = () => {
   const { getAccessTokenSilently, isAuthenticated } = useAuth0();
@@ -79,9 +80,11 @@ export const useAuthFlow = () => {
       // Use redirect flow for both mobile and desktop (more reliable)
       console.log('Using redirect flow for authentication');
       console.log('Provider:', provider);
+      const domain = import.meta.env.VITE_AUTH0_DOMAIN || config.AUTH0_DOMAIN;
+      const clientId = import.meta.env.VITE_AUTH0_CLIENT_ID || config.AUTH0_CLIENT_ID;
       console.log('Auth0 configuration:', {
-        domain: import.meta.env.VITE_AUTH0_DOMAIN,
-        clientId: import.meta.env.VITE_AUTH0_CLIENT_ID,
+        domain,
+        clientId,
         scope: "openid profile email phone address offline_access"
       });
       

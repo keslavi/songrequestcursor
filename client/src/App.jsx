@@ -4,11 +4,14 @@ import { useEffect } from "react";
 import { ContainerFullWidth } from "@/components";
 import { Header } from "./components/header";
 import { Auth0Provider } from "@auth0/auth0-react";
+import config from "@/config";
 import { store } from "@/store/store";
 
 export const App = (props) => {
   const { menu } = props;
   const checkAuth = store.use.checkAuth();
+  const auth0Domain = import.meta.env.VITE_AUTH0_DOMAIN || config.AUTH0_DOMAIN;
+  const auth0ClientId = import.meta.env.VITE_AUTH0_CLIENT_ID || config.AUTH0_CLIENT_ID;
   
   // Use static callback URL to avoid IP address changes
   // You can change this to your preferred IP address
@@ -18,8 +21,8 @@ export const App = (props) => {
   const isDevelopment = import.meta.env.DEV;
   
   console.log("=== AUTH0 DEBUG INFO ===");
-  console.log("domain:", import.meta.env.VITE_AUTH0_DOMAIN);
-  console.log("clientId:", import.meta.env.VITE_AUTH0_CLIENT_ID);
+  console.log("domain:", import.meta.env.VITE_AUTH0_DOMAIN || config.AUTH0_DOMAIN);
+  console.log("clientId:", import.meta.env.VITE_AUTH0_CLIENT_ID || config.AUTH0_CLIENT_ID);
   console.log("window.location.origin:", window.location.origin);
   console.log("window.location.href:", window.location.href);
   console.log("callbackUrl:", callbackUrl);
@@ -35,8 +38,8 @@ export const App = (props) => {
 
   return (
     <Auth0Provider
-      domain={import.meta.env.VITE_AUTH0_DOMAIN}
-      clientId={import.meta.env.VITE_AUTH0_CLIENT_ID}
+      domain={auth0Domain}
+      clientId={auth0ClientId}
       authorizationParams={{
         redirect_uri: callbackUrl,
         scope: "openid profile email phone address offline_access"

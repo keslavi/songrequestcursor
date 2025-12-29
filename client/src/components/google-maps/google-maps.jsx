@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { Loader } from '@googlemaps/js-api-loader';
+import config from '@/config';
 import { 
   Card, 
   CardContent, 
@@ -32,6 +33,7 @@ const GoogleMaps = ({ shows = [], center = { lat: 40.7128, lng: -74.0060 }, zoom
   const [mapLoading, setMapLoading] = useState(false);
   const [mapError, setMapError] = useState(null);
   const [google, setGoogle] = useState(null);
+  const googleMapsApiKey = import.meta.env.VITE_GOOGLE_MAPS_API_KEY || config.GOOGLE_MAPS_API_KEY;
 
   // console.log('GoogleMaps component rendering with props:', { shows: shows.length, center, zoom });
 
@@ -44,7 +46,7 @@ const GoogleMaps = ({ shows = [], center = { lat: 40.7128, lng: -74.0060 }, zoom
     const loadMap = async () => {
       try {
         // console.log('Loading Google Maps...');
-        const apiKey = import.meta.env.VITE_GOOGLE_MAPS_API_KEY;
+  const apiKey = googleMapsApiKey;
          // console.log('Google Maps API Key available:', !!apiKey);
         
         if (!apiKey) {
@@ -431,7 +433,7 @@ const GoogleMaps = ({ shows = [], center = { lat: 40.7128, lng: -74.0060 }, zoom
       />
       
       {/* Show API key error as overlay */}
-      {!import.meta.env.VITE_GOOGLE_MAPS_API_KEY && (
+  {!googleMapsApiKey && (
         <Box 
           sx={{ 
             position: 'absolute',

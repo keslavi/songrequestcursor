@@ -2,6 +2,7 @@ import { Box, Divider, Typography } from "@mui/material";
 import { useAuth0 } from "@auth0/auth0-react";
 import { store } from "@/store/store";
 import { useAuthFlow } from "@/helpers/useAuthToken";
+import config from "@/config";
 
 export const SocialAuth = () => {
   const { user, isAuthenticated: auth0Authenticated } = useAuth0();
@@ -9,7 +10,9 @@ export const SocialAuth = () => {
   const socialAuth = store.use.socialAuth();
 
   // Check if Auth0 is properly configured
-  const isAuth0Configured = import.meta.env.VITE_AUTH0_DOMAIN && import.meta.env.VITE_AUTH0_CLIENT_ID;
+  const auth0Domain = import.meta.env.VITE_AUTH0_DOMAIN || config.AUTH0_DOMAIN;
+  const auth0ClientId = import.meta.env.VITE_AUTH0_CLIENT_ID || config.AUTH0_CLIENT_ID;
+  const isAuth0Configured = auth0Domain && auth0ClientId;
 
   // Detect if user is on mobile device
   const isMobile = () => {

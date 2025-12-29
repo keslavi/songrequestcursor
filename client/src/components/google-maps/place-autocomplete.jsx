@@ -5,6 +5,7 @@ import Autocomplete from "@mui/material/Autocomplete";
 import TextField from "@mui/material/TextField";
 import Box from "@mui/material/Box";
 import Typography from "@mui/material/Typography";
+import config from "@/config";
 
 const DEFAULT_SEARCH_TYPES = [];
 
@@ -93,7 +94,7 @@ export const GooglePlaceAutocomplete = ({
   }, [initialValue]);
 
   useEffect(() => {
-    const apiKey = import.meta.env.VITE_GOOGLE_MAPS_API_KEY;
+  const apiKey = import.meta.env.VITE_GOOGLE_MAPS_API_KEY || config.GOOGLE_MAPS_API_KEY;
     if (!apiKey) {
       const message = "Google Maps API key is not configured.";
       setLoadError(message);
