@@ -6,6 +6,7 @@
     "setup": "npm run install:client && npm run install:server",
   "install:client": "npm --prefix client install --legacy-peer-deps",
   "install:server": "npm --prefix server install --legacy-peer-deps",
+    "prebuild": "npm run setup",
     "build": "npm --prefix client run build && node scripts/sync-client-build.mjs",
     "start": "npm --prefix server run start:prod",
     "dev": "npm --prefix server run dev"
