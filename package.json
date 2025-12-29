@@ -2,15 +2,12 @@
   "name": "songrequestcursor",
   "private": true,
   "type": "module",
-  "workspaces": [
-    "client",
-    "server"
-  ],
   "scripts": {
-    "build": "npm run build:client && npm run sync-static",
-    "build:client": "npm run build --workspace client",
-    "sync-static": "node scripts/sync-client-build.mjs",
-    "start": "npm run start:prod --workspace server",
-    "dev": "npm run dev --workspace server"
+    "setup": "npm run install:client && npm run install:server",
+  "install:client": "npm --prefix client install --legacy-peer-deps",
+  "install:server": "npm --prefix server install --legacy-peer-deps",
+    "build": "npm --prefix client run build && node scripts/sync-client-build.mjs",
+    "start": "npm --prefix server run start:prod",
+    "dev": "npm --prefix server run dev"
   }
 }

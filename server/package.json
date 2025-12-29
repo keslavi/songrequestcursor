@@ -27,7 +27,8 @@
     "koa-static": "^5.0.0",
     "mongoose": "^8.0.3",
     "multer": "^2.0.2",
-    "nodemailer": "^7.0.3"
+    "nodemailer": "^7.0.3",
+    "songrequestcursor": "file:.."
   },
   "devDependencies": {
     "nodemon": "^3.0.2"
