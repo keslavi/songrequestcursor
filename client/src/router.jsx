@@ -1,7 +1,7 @@
 import { createBrowserRouter, RouterProvider } from "react-router-dom";
 import { lazy, Suspense } from "react";
 
-import App from "./app"; //router displays here
+import App from "./App"; //router displays here
 
 //things that are always loaded
 //prettier-ignore
