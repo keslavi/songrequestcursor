@@ -7,6 +7,7 @@ import { ToastContainer } from "react-toastify";
 import { Spinner } from "@/components/spinner";
 import "./scss/index.scss";
 import { ThemeProvider } from "./theme-material";
+import { InitState } from "components/init-state";
 
 //import "./helpers/extensions/console-extension";
 //console.logGroup.test(); //works in any *.js, *.jsx file/*
@@ -27,9 +28,11 @@ ReactDOM.createRoot(document.getElementById("root")).render(
       pauseOnHover
     />
     {/* <Provider store={useStore}> */}
+    <InitState>
       <ThemeProvider>
         <Router />
       </ThemeProvider>
+    </InitState>
     {/* </Provider> */}
     {/* </React.StrictMode> */}
   </>

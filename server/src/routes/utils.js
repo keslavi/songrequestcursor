@@ -20,6 +20,15 @@ const SERVER_ENV_KEYS = [
   'CLIENT_URL'
 ];
 
+const CLIENT_CONFIG_KEYS = {
+  AUTH0_DOMAIN: 'VITE_AUTH0_DOMAIN',
+  AUTH0_CLIENT_ID: 'VITE_AUTH0_CLIENT_ID',
+  AUTH0_AUDIENCE: 'VITE_AUTH0_AUDIENCE',
+  GOOGLE_MAPS_API_KEY: 'VITE_GOOGLE_MAPS_API_KEY',
+  API_URL: 'VITE_API_URL',
+  APP_ENV: 'VITE_APP_ENV'
+};
+
 const router = new Router({ prefix: '/api/utils' });
 
 // Resolve shortened URL
@@ -87,6 +96,20 @@ router.get('/env', async (ctx) => {
 
   ctx.body = {
     server: serverEnv
+  };
+});
+
+// Expose a subset of Vite client configuration variables for the frontend to consume
+router.get('/client-config', async (ctx) => {
+  const clientConfig = Object.entries(CLIENT_CONFIG_KEYS).reduce((acc, [key, envKey]) => {
+    acc[key] = Object.prototype.hasOwnProperty.call(process.env, envKey)
+      ? process.env[envKey]
+      : null;
+    return acc;
+  }, {});
+
+  ctx.body = {
+    client: clientConfig
   };
 });
 

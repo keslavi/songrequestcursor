@@ -33,7 +33,7 @@ const GoogleMaps = ({ shows = [], center = { lat: 40.7128, lng: -74.0060 }, zoom
   const [mapLoading, setMapLoading] = useState(false);
   const [mapError, setMapError] = useState(null);
   const [google, setGoogle] = useState(null);
-  const googleMapsApiKey = import.meta.env.VITE_GOOGLE_MAPS_API_KEY || config.GOOGLE_MAPS_API_KEY;
+  const googleMapsApiKey = config.GOOGLE_MAPS_API_KEY;
 
   // console.log('GoogleMaps component rendering with props:', { shows: shows.length, center, zoom });
 

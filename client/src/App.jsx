@@ -10,19 +10,19 @@ import { store } from "@/store/store";
 export const App = (props) => {
   const { menu } = props;
   const checkAuth = store.use.checkAuth();
-  const auth0Domain = import.meta.env.VITE_AUTH0_DOMAIN || config.AUTH0_DOMAIN;
-  const auth0ClientId = import.meta.env.VITE_AUTH0_CLIENT_ID || config.AUTH0_CLIENT_ID;
+  const auth0Domain = config.AUTH0_DOMAIN;
+  const auth0ClientId = config.AUTH0_CLIENT_ID;
   
   // Use static callback URL to avoid IP address changes
   // You can change this to your preferred IP address
   const callbackUrl = `${window.location.origin}/auth/callback`;//'http://localhost:3000/auth/callback';
   
   // Check if we're in development mode
-  const isDevelopment = import.meta.env.DEV;
+  const isDevelopment = (config.APP_ENV || "").toLowerCase() === "development";
   
   console.log("=== AUTH0 DEBUG INFO ===");
-  console.log("domain:", import.meta.env.VITE_AUTH0_DOMAIN || config.AUTH0_DOMAIN);
-  console.log("clientId:", import.meta.env.VITE_AUTH0_CLIENT_ID || config.AUTH0_CLIENT_ID);
+  console.log("domain:", auth0Domain);
+  console.log("clientId:", auth0ClientId);
   console.log("window.location.origin:", window.location.origin);
   console.log("window.location.href:", window.location.href);
   console.log("callbackUrl:", callbackUrl);
@@ -38,8 +38,8 @@ export const App = (props) => {
 
   return (
     <Auth0Provider
-      domain={auth0Domain}
-      clientId={auth0ClientId}
+  domain={auth0Domain}
+  clientId={auth0ClientId}
       authorizationParams={{
         redirect_uri: callbackUrl,
         scope: "openid profile email phone address offline_access"

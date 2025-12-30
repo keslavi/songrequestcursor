@@ -10,8 +10,8 @@ export const SocialAuth = () => {
   const socialAuth = store.use.socialAuth();
 
   // Check if Auth0 is properly configured
-  const auth0Domain = import.meta.env.VITE_AUTH0_DOMAIN || config.AUTH0_DOMAIN;
-  const auth0ClientId = import.meta.env.VITE_AUTH0_CLIENT_ID || config.AUTH0_CLIENT_ID;
+  const auth0Domain = config.AUTH0_DOMAIN;
+  const auth0ClientId = config.AUTH0_CLIENT_ID;
   const isAuth0Configured = auth0Domain && auth0ClientId;
 
   // Detect if user is on mobile device

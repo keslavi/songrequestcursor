@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
+import config from "@/config";
 
 const CLIENT_ENV_KEYS = [
     "VITE_PROXY",
@@ -41,10 +42,14 @@ export const About = () => {
     const [serverError, setServerError] = useState(null);
 
     const clientEnv = useMemo(() => {
-        return CLIENT_ENV_KEYS.reduce((acc, key) => {
-            acc[key] = import.meta.env[key] ?? null;
-            return acc;
-        }, {});
+        return {
+            AUTH0_DOMAIN: config.AUTH0_DOMAIN,
+            AUTH0_CLIENT_ID: config.AUTH0_CLIENT_ID,
+            AUTH0_AUDIENCE: config.AUTH0_AUDIENCE,
+            GOOGLE_MAPS_API_KEY: config.GOOGLE_MAPS_API_KEY,
+            API_URL: config.API_URL || config.api,
+            APP_ENV: config.APP_ENV
+        };
     }, []);
 
     useEffect(() => {
@@ -80,7 +85,7 @@ export const About = () => {
             <p>Temporary diagnostics view of environment variables.</p>
 
             <section>
-                <h5>Client Environment (Vite)</h5>
+                <h5>Client Environment (configured)</h5>
                 <table>
                     <thead>
                         <tr>

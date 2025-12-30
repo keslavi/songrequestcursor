@@ -94,7 +94,7 @@ export const GooglePlaceAutocomplete = ({
   }, [initialValue]);
 
   useEffect(() => {
-  const apiKey = import.meta.env.VITE_GOOGLE_MAPS_API_KEY || config.GOOGLE_MAPS_API_KEY;
+  const apiKey = config.GOOGLE_MAPS_API_KEY;
     if (!apiKey) {
       const message = "Google Maps API key is not configured.";
       setLoadError(message);
