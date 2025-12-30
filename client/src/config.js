@@ -14,7 +14,9 @@ export const config = {
   AUTH0_AUDIENCE: "https://your-api-identifier.com",
   GOOGLE_MAPS_API_KEY: "AIzaSyDAye-oL5INXPKUWOGG3uttsZpdtymwSf0",
   APP_ENV: "prod",
-  __clientConfigLoaded: false
+  __clientConfigLoaded: false,
+  __clientConfig: null,
+  __clientConfigEnv: null
 }
 
 export default config;

@@ -13,7 +13,7 @@ const buildClientConfigUrl = () => {
   return `${normalizedBase}/utils/client-config`;
 };
 
-const applyClientConfig = (clientConfig = {}) => {
+const applyClientConfig = (clientConfig = {}, clientEnv = {}) => {
   const entries = Object.entries(clientConfig);
 
   entries.forEach(([key, value]) => {
@@ -30,6 +30,8 @@ const applyClientConfig = (clientConfig = {}) => {
     config[key] = value;
   });
 
+  config.__clientConfig = { ...clientConfig };
+  config.__clientConfigEnv = { ...clientEnv };
   config.__clientConfigLoaded = true;
 };
 
@@ -56,13 +58,14 @@ export const InitState = ({ children }) => {
 
         const data = await response.json();
         if (!cancelled) {
-          applyClientConfig(data?.client);
+          applyClientConfig(data?.client, data?.clientEnv);
           setReady(true);
         }
       } catch (err) {
         console.error("Error loading client configuration", err);
         if (!cancelled) {
           setError(err);
+          config.__clientConfigEnv = null;
           config.__clientConfigLoaded = true;
           setReady(true);
         }

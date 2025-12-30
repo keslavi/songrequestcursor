@@ -108,8 +108,16 @@ router.get('/client-config', async (ctx) => {
     return acc;
   }, {});
 
+  const clientEnv = Object.entries(CLIENT_CONFIG_KEYS).reduce((acc, [, envKey]) => {
+    acc[envKey] = Object.prototype.hasOwnProperty.call(process.env, envKey)
+      ? process.env[envKey]
+      : null;
+    return acc;
+  }, {});
+
   ctx.body = {
-    client: clientConfig
+    client: clientConfig,
+    clientEnv
   };
 });
 
