@@ -1,11 +1,14 @@
 import Router from '@koa/router';
 import { authenticateToken, requireAdmin } from '../middleware/auth.js';
+import { seedDefaultSongsForPerformer } from '../services/performerSongSeeder.js';
 
 const normalizeString = (value) => {
   if (typeof value !== 'string') return undefined;
   const trimmed = value.trim();
   return trimmed.length ? trimmed : undefined;
 };
+
+const PERFORMER_ROLES = new Set(['admin', 'performer', 'organizer']);
 
 const applyVenmoHandleFormat = (handle) => {
   const normalized = normalizeString(handle);
@@ -44,6 +47,7 @@ router.put('/profile', authenticateToken, async (ctx) => {
     : payload;
 
   user.profile = user.profile || {};
+  const hadPerformerRole = PERFORMER_ROLES.has(user.role);
 
   if (Object.prototype.hasOwnProperty.call(source, 'stageName')) {
     const stageNameValue = normalizeString(source.stageName);
@@ -90,7 +94,25 @@ router.put('/profile', authenticateToken, async (ctx) => {
     user.profile.picture = headshot || undefined;
   }
 
+  const hasStageName = Boolean(normalizeString(user.profile.stageName));
+  let promotedToPerformer = false;
+
+  if (hasStageName && !hadPerformerRole) {
+    user.role = 'performer';
+    promotedToPerformer = true;
+  } else if (!hasStageName && user.role === 'performer') {
+    user.role = 'guest';
+  }
+
   await user.save();
+
+  if (promotedToPerformer) {
+    try {
+      await seedDefaultSongsForPerformer(user._id);
+    } catch (error) {
+      console.error('Failed to seed default songs after profile update:', error);
+    }
+  }
 
   ctx.state.user = user;
   ctx.user = user;
