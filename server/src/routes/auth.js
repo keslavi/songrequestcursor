@@ -6,6 +6,7 @@ import config from '../config.js';
 import emailService from '../services/emailService.js';
 import smsService from '../services/smsService.js';
 import bcrypt from 'bcryptjs';
+import { seedDefaultSongsForPerformer } from '../services/performerSongSeeder.js';
 
 const router = new Router({ prefix: '/api/public/auth' });
 
@@ -171,17 +172,29 @@ router.post('/register', async (ctx) => {
       profileData.contactPhone = normalizedContactPhone;
     }
 
+    const isPerformerRegistration = Boolean(preferredStageName);
+
     const user = new User({ 
       username, 
       email, 
       password,
-      role: 'guest', // Default role
+      role: isPerformerRegistration ? 'performer' : 'guest',
       profile: {
         ...profileData,
         name: profileData?.name || username
       }
     });
     await user.save();
+
+    if (isPerformerRegistration) {
+      try {
+        // Seed the default ff2 set for every new performer account.
+        const result = await seedDefaultSongsForPerformer(user._id);
+        console.log(`Seeded default songs for performer ${user.username}`, result);
+      } catch (seedError) {
+        console.error('Failed to seed default songs for performer:', seedError);
+      }
+    }
 
     const token = jwt.sign(
       { userId: user._id },
