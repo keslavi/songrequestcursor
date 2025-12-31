@@ -61,23 +61,7 @@ app.use(logger());
 app.use(bodyParser());
 
 app.use(cors({
-  origin: (ctx) => {
-    const origin = ctx.get('Origin');
-    if (!origin) return config.clientUrl;
-
-    // Allow common local dev origins (Vite ports can vary if 3000 is taken).
-    const allow = new Set([
-      config.clientUrl,
-      'http://localhost:3000',
-      'http://localhost:3001',
-      'http://localhost:5173',
-      'http://127.0.0.1:3000',
-      'http://127.0.0.1:3001',
-      'http://127.0.0.1:5173'
-    ]);
-
-    return allow.has(origin) ? origin : config.clientUrl;
-  },
+  origin: (ctx) => ctx.get('Origin') || config.clientUrl,
   credentials: true
 }));
 

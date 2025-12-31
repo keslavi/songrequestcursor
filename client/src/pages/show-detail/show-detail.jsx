@@ -16,7 +16,8 @@ import {
   TextField,
   Stack,
   IconButton,
-  SvgIcon
+  SvgIcon,
+  Chip
 } from "@mui/material";
 import {
   MusicNote,
@@ -41,6 +42,7 @@ import dayjs from "dayjs";
 import api from "@/store/api";
 import { resolver } from "./validation";
 import { store } from "@/store/store";
+import { color } from "@/theme-material";
 
 const STATUS_PRIORITY = {
   playing: 0,
@@ -76,6 +78,7 @@ export const ShowDetail = () => {
   const [priorityAmount, setPriorityAmount] = useState(5);
   const [priorityDedication, setPriorityDedication] = useState('');
   const [isSubmittingPriority, setIsSubmittingPriority] = useState(false);
+  const [currentPlayingGroup, setCurrentPlayingGroup] = useState(null);
 
   const user = store.use.user();
 
@@ -236,6 +239,8 @@ export const ShowDetail = () => {
   const updatePriorityGroups = useCallback((requestList = []) => {
     const grouped = groupRequestsBySong(requestList);
     setPriorityGroups(grouped.filter((group) => group.status === 'add_to_request'));
+    const playingGroup = grouped.find((group) => group.status === 'playing');
+    setCurrentPlayingGroup(playingGroup || null);
   }, [groupRequestsBySong]);
 
   const refreshPriorityRequests = useCallback(async () => {
@@ -247,6 +252,49 @@ export const ShowDetail = () => {
       console.error('Failed to load priority requests:', error);
     }
   }, [id, updatePriorityGroups]);
+
+  const playingPrimarySong = useMemo(() => {
+    if (!currentPlayingGroup?.requests?.length) {
+      return null;
+    }
+
+    let latestWithSongId = null;
+    let fallbackSong = null;
+
+    currentPlayingGroup.requests.forEach((request, index) => {
+      const requestSongs = request.songs || [];
+      if (index === 0 && requestSongs[0]) {
+        fallbackSong = requestSongs[0];
+      }
+      const matchWithId = requestSongs.find((song) => song.songId);
+      if (matchWithId) {
+        latestWithSongId = matchWithId;
+      }
+    });
+
+    return latestWithSongId || fallbackSong || null;
+  }, [currentPlayingGroup]);
+
+  const playingLyricsLink = useMemo(() => {
+    if (!playingPrimarySong) {
+      return null;
+    }
+    return playingPrimarySong.link2 || playingPrimarySong.link1 || null;
+  }, [playingPrimarySong]);
+
+  const playingSongLabel = useMemo(() => {
+    if (!playingPrimarySong) {
+      return null;
+    }
+
+    const name = playingPrimarySong.songname || '';
+    if (!name) {
+      return null;
+    }
+
+    const artistSuffix = playingPrimarySong.artist ? ` - ${playingPrimarySong.artist}` : '';
+    return `${name}${artistSuffix}`;
+  }, [playingPrimarySong]);
 
   const getStoredPhoneDigits = useCallback(() => {
     const fallback = typeof window !== 'undefined' ? window.localStorage?.getItem('lastPhoneNumber') : '';
@@ -691,10 +739,49 @@ export const ShowDetail = () => {
         <Col size={12}>
           <Card>
             <CardContent>
-              <Typography variant="h6" gutterBottom>
-                <MusicNote sx={{ mr: 1, verticalAlign: 'middle' }} />
-                Request a Song
-              </Typography>
+              <Box
+                sx={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'space-between',
+                  flexWrap: 'wrap',
+                  gap: 1.5,
+                  mb: 2
+                }}
+              >
+                <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                  <Typography
+                    variant="h6"
+                    component="span"
+                    sx={{
+                      color: playingSongLabel ? color.primary.blue : 'inherit',
+                      fontWeight: playingSongLabel ? 700 : undefined
+                    }}
+                  >
+                    {playingSongLabel ? `Playing: ${playingSongLabel}` : (<>                  <MusicNote
+                      sx={{
+                        verticalAlign: 'middle',
+                        color: playingSongLabel ? color.primary.blue : 'inherit'
+                      }}
+                    />
+                      Request a Song</>)
+                    }
+                  </Typography>
+                </Box>
+                {playingLyricsLink && (
+                  <Chip
+                    component="a"
+                    href={playingLyricsLink}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    label="Lyrics"
+                    color="primary"
+                    size="small"
+                    clickable
+                    sx={{ alignSelf: 'center' }}
+                  />
+                )}
+              </Box>
 
               {priorityGroups.length > 0 && (
                 <Box sx={{ mb: 3 }}>
@@ -824,25 +911,14 @@ export const ShowDetail = () => {
                       </Button>
                     </Col>
                   </Row>
-
-                  <Row>
-                    <Col size={12}>
-                      <Typography variant="caption" color="text.secondary" align="center" display="block">
-                        Clicking &quot;Request Song&quot; will open Venmo to complete your payment
-                      </Typography>
-                    </Col>
-                  </Row>
                 </Fieldset>
               </FormProvider>
 
               {/* Song List */}
               {songs && songs.length > 0 && (
-                <Box sx={{ mt: 4 }}>
+                <Box sx={{ mt: 2 }}>
                   <Typography variant="h6" gutterBottom>
                     Available Songs
-                  </Typography>
-                  <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
-                    Click a song to add it to your request
                   </Typography>
                   <Box sx={{
                     maxHeight: '400px',

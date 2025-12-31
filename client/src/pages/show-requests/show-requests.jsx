@@ -7,6 +7,7 @@ import api from "@/store/api";
 import { Row, Col, TextareaDebug } from "components";
 import { store } from "@/store/store";
 import config from "@/config";
+import { color } from "@/theme-material";
 
 const STATUS_PRIORITY = {
   playing: 0,
@@ -543,6 +544,13 @@ export const ShowRequests = () => {
               const isPlaying = group.status === 'playing';
               const isAddToRequest = group.status === 'add_to_request';
               const pointsSummary = `${group.totalTip} ${group.totalTip === 1 ? 'point' : 'points'}, ${group.count} ${group.count === 1 ? 'request' : 'requests'}`;
+              const primaryRequestSong = group.requests?.[0]?.songs?.[0];
+              const chordSearchParts = [group.songName];
+              if (primaryRequestSong?.artist) {
+                chordSearchParts.push(primaryRequestSong.artist);
+              }
+              chordSearchParts.push('"chords"');
+              const chordSearchUrl = `https://www.google.com/search?q=${encodeURIComponent(chordSearchParts.filter(Boolean).join(' '))}`;
               return (
               <Card
                 key={`active-${index}`}
@@ -569,17 +577,32 @@ export const ShowRequests = () => {
                       sx={{ fontWeight: 600, cursor: 'pointer' }}
                     />
                     <Box sx={{ flex: 1, ml: 2, display: 'flex', alignItems: 'center', gap: 1, flexWrap: 'wrap' }}>
-                      <Typography variant="h6" sx={{ textAlign: 'left' }}>
-                        {getDisplaySongName(group)}
-                      </Typography>
                       {songKey && (
-                        <Chip
-                          label={`Key: ${songKey}`}
-                          color="secondary"
-                          size="small"
-                          sx={{ fontWeight: 600 }}
-                        />
+                        <Typography
+                          component="span"
+                          variant="h6"
+                          sx={{ color: color.primary.blue, fontWeight: 700 }}
+                        >
+                          {songKey}
+                        </Typography>
                       )}
+                      <Typography
+                        component="a"
+                        variant="h6"
+                        href={chordSearchUrl}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        sx={{
+                          textAlign: 'left',
+                          color: 'text.primary',
+                          textDecoration: 'underline',
+                          textDecorationThickness: '0.08em',
+                          textUnderlineOffset: 4,
+                          cursor: 'pointer'
+                        }}
+                      >
+                        {group.songName}
+                      </Typography>
                     </Box>
                   </Box>
 
@@ -754,17 +777,22 @@ export const ShowRequests = () => {
                           sx={{ fontWeight: 600, cursor: 'pointer' }}
                         />
                         <Box sx={{ flex: 1, ml: 2, display: 'flex', alignItems: 'center', gap: 1, flexWrap: 'wrap' }}>
-                          <Typography variant="h6" sx={{ textAlign: 'left', color: 'text.secondary' }}>
-                            {getDisplaySongName(group)}
-                          </Typography>
                           {songKey && (
-                            <Chip
-                              label={`Key: ${songKey}`}
-                              color="default"
-                              size="small"
-                              sx={{ fontWeight: 600 }}
-                            />
+                            <Typography
+                              component="span"
+                              variant="h6"
+                              sx={{ color: color.primary.blue, fontWeight: 700 }}
+                            >
+                              {songKey}
+                            </Typography>
                           )}
+                          <Typography
+                            component="span"
+                            variant="h6"
+                            sx={{ textAlign: 'left', color: 'text.secondary' }}
+                          >
+                            {group.songName}
+                          </Typography>
                         </Box>
                       </Box>
 

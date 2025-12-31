@@ -12,6 +12,54 @@ const getShowKey = (showId) => {
   return showId.toString();
 };
 
+const escapeRegex = (value = '') => String(value).replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+
+const getPerformerIdsForShow = (show) => {
+  if (!show) {
+    return [];
+  }
+
+  const ids = [];
+
+  const pushId = (value) => {
+    if (!value) {
+      return;
+    }
+    if (typeof value === 'object' && value._id) {
+      ids.push(value._id.toString());
+      return;
+    }
+    ids.push(value.toString());
+  };
+
+  pushId(show.performer);
+
+  (show.additionalPerformers || []).forEach((performer) => {
+    pushId(performer);
+  });
+
+  return ids;
+};
+
+const findSongForShow = async ({ songname, artist }, performerIds = []) => {
+  const name = String(songname || '').trim();
+  if (!name || !performerIds.length) {
+    return null;
+  }
+
+  const query = {
+    performer: { $in: performerIds },
+    songname: new RegExp(`^${escapeRegex(name)}$`, 'i')
+  };
+
+  const trimmedArtist = String(artist || '').trim();
+  if (trimmedArtist) {
+    query.artist = new RegExp(`^${escapeRegex(trimmedArtist)}$`, 'i');
+  }
+
+  return Song.findOne(query).sort({ updatedAt: -1 }).lean();
+};
+
 const registerClient = (showId, client) => {
   const key = getShowKey(showId);
   if (!key) return;
@@ -143,6 +191,8 @@ router.post('/', async (ctx) => {
     // Note: No limit on number of requests per user - users can request as many songs as they wish
     // But only 1 song can be requested at a time (enforced above)
 
+    const performerIds = getPerformerIdsForShow(show);
+
     // Process songs - validate existing songs and format custom ones
     const processedSongs = await Promise.all(
       songs.map(async (song) => {
@@ -156,11 +206,27 @@ router.post('/', async (ctx) => {
             songId: song.songId,
             songname: existingSong.songname,
             artist: existingSong.artist,
-            key: existingSong.key || null,
-            isCustom: false
+            key: song.key || existingSong.key || null,
+            isCustom: false,
+            link1: song.link1 || existingSong.link1 || null,
+            link2: song.link2 || existingSong.link2 || null
           };
         } else {
           // Custom song entered by user
+          const matchedSong = await findSongForShow(song, performerIds);
+
+          if (matchedSong) {
+            return {
+              songId: matchedSong._id?.toString() || null,
+              songname: matchedSong.songname,
+              artist: matchedSong.artist || '',
+              key: song.key || matchedSong.key || null,
+              isCustom: false,
+              link1: song.link1 || matchedSong.link1 || null,
+              link2: song.link2 || matchedSong.link2 || null
+            };
+          }
+
           if (!song.songname) {
             throw new Error('Song name is required for custom songs');
           }
@@ -168,7 +234,9 @@ router.post('/', async (ctx) => {
             songname: song.songname,
             artist: song.artist || '',
             key: song.key || null,
-            isCustom: true
+            isCustom: true,
+            link1: song.link1 || null,
+            link2: song.link2 || null
           };
         }
       })
@@ -225,16 +293,31 @@ router.get('/show/:showId/events', async (ctx) => {
 
     ctx.req.setTimeout(0);
 
+    const originHeader = ctx.get('Origin');
+    const resolvedOrigin = originHeader || ctx.origin || '*';
+
     ctx.set({
       'Content-Type': 'text/event-stream',
-      'Cache-Control': 'no-cache',
-      Connection: 'keep-alive'
+      'Cache-Control': 'no-cache, no-transform',
+      Connection: 'keep-alive',
+      'X-Accel-Buffering': 'no',
+      'Access-Control-Allow-Origin': resolvedOrigin,
+      'Access-Control-Allow-Credentials': 'true'
     });
 
     ctx.status = 200;
 
     const stream = new PassThrough();
     ctx.body = stream;
+
+    if (ctx.res.flushHeaders) {
+      ctx.res.flushHeaders();
+    }
+
+    if (ctx.req.socket) {
+      ctx.req.socket.setNoDelay(true);
+      ctx.req.socket.setKeepAlive(true);
+    }
 
     const client = { stream };
     registerClient(showId, client);

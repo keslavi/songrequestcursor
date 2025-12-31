@@ -16,6 +16,7 @@ import { color } from "@/theme-material";
 import { ThemeProvider, createTheme } from "@mui/material/styles";
 import { store } from "@/store/store";
 import { useAuth0 } from "@auth0/auth0-react";
+import headerLogo from "./songrequest_logo.ico";
 
 const settings = ["Profile", "Account", "Dashboard", "Logout"];
 
@@ -148,23 +149,32 @@ export const Header = (props) => {
       >
         <Container maxWidth="xl">
           <Toolbar disableGutters variant="dense">
-            <Typography
-              variant="h6"
-              noWrap
+            <Box
               component="a"
               href="#app-bar-with-responsive-menu"
               sx={{
                 mr: 2,
                 display: { xs: "none", md: "flex" },
-                fontFamily: "monospace",
-                fontWeight: 700,
-                letterSpacing: ".3rem",
-                color: "inherit",
+                alignItems: "center",
+                gap: 1,
                 textDecoration: "none",
+                color: color.white,
               }}
             >
-              SONG REQUEST
-            </Typography>
+              <Box
+                component="img"
+                src={headerLogo}
+                alt="Song Request"
+                sx={{ height: 40, width: 40, borderRadius: "50%" }}
+              />
+              <Typography
+                component="span"
+                variant="h6"
+                sx={{ fontWeight: 700, letterSpacing: '.2rem', color: '#ffffff !important' }}
+              >
+                Song Request
+              </Typography>
+            </Box>
 
             <Box sx={{ flexGrow: 1, display: { xs: "flex", md: "none" } }}>
               <IconButton
@@ -196,35 +206,33 @@ export const Header = (props) => {
                 {renderMenuXs(menu)}
               </Menu>
             </Box>
-            <img
-              src="/src/components/header/songrequest_logo.png"
-              alt="Song Request"
-              style={{
-                display: { xs: "flex", md: "none" },
-                marginRight: "8px",
-                height: "32px",
-                width: "auto",
-                borderRadius: "50%"
-              }}
-            />
-            <Typography
-              variant="h5"
-              noWrap
+            <Box
               component="a"
               href="#app-bar-with-responsive-menu"
               sx={{
                 mr: 2,
                 display: { xs: "flex", md: "none" },
                 flexGrow: 1,
-                fontFamily: "monospace",
-                fontWeight: 700,
-                letterSpacing: ".3rem",
-                color: "inherit",
+                alignItems: "center",
+                gap: 1,
                 textDecoration: "none",
+                color: color.white,
               }}
             >
-              SONG REQUEST
-            </Typography>
+              <Box
+                component="img"
+                src={headerLogo}
+                alt="Song Request"
+                sx={{ height: 32, width: 32, borderRadius: "50%" }}
+              />
+              <Typography
+                component="span"
+                variant="subtitle1"
+                sx={{ fontWeight: 700, textTransform: 'uppercase', letterSpacing: '.15rem', color: '#ffffff !important' }}
+              >
+                Song Request
+              </Typography>
+            </Box>
             <Box sx={{ flexGrow: 1, display: { xs: "none", md: "flex" } }}>
               {renderMenu(menu)}
             </Box>

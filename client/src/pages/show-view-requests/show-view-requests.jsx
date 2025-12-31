@@ -22,7 +22,7 @@ import { toast } from "react-toastify";
 import dayjs from "dayjs";
 import api from "@/store/api";
 import config from "@/config";
-import { Row, Col, ShowHeader, TextareaDebug, PriorityRequestCard } from "components";
+import { Row, Col, ShowHeader, PriorityRequestCard } from "components";
 import { store } from "@/store/store";
 
 const STATUS_PRIORITY = {
@@ -124,18 +124,46 @@ export const ShowViewRequests = () => {
     }
   }, []);
 
-  const getPrimarySong = (group) => group?.requests?.[0]?.songs?.[0] || null;
+  const getPrimarySong = (group) => {
+    if (!group?.requests?.length) {
+      return null;
+    }
+
+    let latestWithSongId = null;
+    let earliestRequestSong = group.requests?.[0]?.songs?.[0] || null;
+
+    group.requests.forEach((request, index) => {
+      const matchingSong = (request.songs || []).find((song) => song.songId);
+      if (matchingSong) {
+        latestWithSongId = matchingSong;
+      }
+      if (index === 0 && request.songs?.[0]) {
+        earliestRequestSong = request.songs[0];
+      }
+    });
+
+    return latestWithSongId || earliestRequestSong || null;
+  };
 
   const getLyricsLink = (group) => {
     const primarySong = getPrimarySong(group);
-    if (!primarySong?.songId) {
+    if (!primarySong) {
       return null;
     }
+
+    if (primarySong.link2 || primarySong.link1) {
+      return primarySong.link2 || primarySong.link1;
+    }
+
+    if (!primarySong.songId) {
+      return null;
+    }
+
     const details = songDetails[primarySong.songId];
     if (!details) {
       return null;
     }
-    return details.link1 || details.link2 || null;
+    return details.link2 || details.link1 || null;
   };
 
   const getPhoneDigits = () => {
@@ -482,7 +510,7 @@ export const ShowViewRequests = () => {
                       const isPlaying = group.status === 'playing';
                       const isPlayed = group.status === 'played';
                       const isPending = group.status === 'pending';
-                      const lyricsUrl = isPlaying ? getLyricsLink(group) : null;
+                      const lyricsUrl = getLyricsLink(group);
 
                       return (
                         <Card
@@ -532,36 +560,36 @@ export const ShowViewRequests = () => {
                                 )}
                               </Box>
 
-                              <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5, color: 'text.secondary' }}>
-                                <AccessTime sx={{ fontSize: 14 }} />
-                                <Typography variant="caption">
+                              <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.75 }}>
+                                <AccessTime sx={{ fontSize: 14, color: 'text.secondary' }} />
+                                <Typography variant="caption" color="text.secondary">
                                   {dayjs(group.earliestTime).format('h:mm A')}
                                 </Typography>
+                                {lyricsUrl && (
+                                  <Chip
+                                    component="a"
+                                    href={lyricsUrl}
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    label="Lyrics"
+                                    color="primary"
+                                    size="small"
+                                    clickable
+                                    sx={{ ml: 0.5 }}
+                                  />
+                                )}
                               </Box>
                             </Box>
 
                             <Typography
                               variant="h6"
                               sx={{
-                                mb: lyricsUrl ? 0.5 : 1,
+                                mb: 1,
                                 color: isPlayed ? 'text.secondary' : 'text.primary'
                               }}
                             >
                               {group.songName}
                             </Typography>
-                            {lyricsUrl && (
-                              <Typography
-                                component="a"
-                                href={lyricsUrl}
-                                target="_blank"
-                                rel="noopener noreferrer"
-                                variant="body2"
-                                color="primary"
-                                sx={{ display: 'inline-block', mb: 1 }}
-                              >
-                                View Lyrics
-                              </Typography>
-                            )}
 
                             {group.requests.some(req => req.dedication) && (
                               <Box sx={{ pl: 2, borderLeft: 2, borderColor: 'primary.light' }}>

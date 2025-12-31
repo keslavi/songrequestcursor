@@ -43,6 +43,14 @@ const requestSchema = new mongoose.Schema({
     isCustom: {
       type: Boolean,
       default: false
+    },
+    link1: {
+      type: String,
+      trim: true
+    },
+    link2: {
+      type: String,
+      trim: true
     }
   }],
   dedication: {
@@ -144,12 +152,23 @@ requestSchema.methods.toPublic = function() {
   const phoneDigits = this.requesterPhone ? String(this.requesterPhone).replace(/[^\d]/g, '') : '';
   const last4 = phoneDigits.length >= 4 ? phoneDigits.slice(-4) : null;
 
+  const songs = (this.songs || []).map((song) => ({
+    songId: song.songId || null,
+    songname: song.songname,
+    artist: song.artist || '',
+    key: song.key || null,
+    isCustom: Boolean(song.isCustom),
+    link1: song.link1 || null,
+    link2: song.link2 || null,
+    _id: song._id
+  }));
+
   return {
     id: this._id,
     show: this.show,
     user: this.user,
     requesterPhoneLast4: last4,
-    songs: this.songs,
+    songs,
     dedication: this.dedication,
     tipAmount: this.tipAmount,
     status: this.status,
