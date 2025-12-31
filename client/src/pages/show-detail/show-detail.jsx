@@ -79,6 +79,8 @@ export const ShowDetail = () => {
   const [priorityDedication, setPriorityDedication] = useState('');
   const [isSubmittingPriority, setIsSubmittingPriority] = useState(false);
   const [currentPlayingGroup, setCurrentPlayingGroup] = useState(null);
+  const [guestPoints, setGuestPoints] = useState(null);
+  const [isFetchingPoints, setIsFetchingPoints] = useState(false);
 
   const user = store.use.user();
 
@@ -100,8 +102,10 @@ export const ShowDetail = () => {
   const [phoneInput, setPhoneInput] = useState("");
   const [guestNameInput, setGuestNameInput] = useState("");
   const [pendingSubmitValues, setPendingSubmitValues] = useState(null);
+  const [pendingUsePoints, setPendingUsePoints] = useState(false);
   const [currentUserId, setCurrentUserId] = useState(null);
   const hasAutoPromptedPhone = useRef(false);
+  const lastFetchedPointsRef = useRef(null);
 
   const defaultGuestPhone = useMemo(() => {
     return guestPhoneNumber || localStorage.getItem("lastPhoneNumber") || "";
@@ -152,9 +156,10 @@ export const ShowDetail = () => {
     }
   });
 
-  const { setValue, watch, setFocus } = formMethods;
+  const { setValue, watch, setFocus, getValues } = formMethods;
   const currentSong = watch('song');
   const currentSongNotInList = watch('songNotInList');
+  const tipAmountValue = watch('tipAmount');
 
   const clearPerformerSongSelection = useCallback(() => {
     if (!currentSong) {
@@ -308,6 +313,64 @@ export const ShowDetail = () => {
     const nameSource = guestName || fallback || '';
     return String(nameSource).trim();
   }, [guestName]);
+
+  const fetchGuestPoints = useCallback(async (digits, nameValue = '') => {
+    if (!show || show.showType !== 'private') {
+      return null;
+    }
+
+    if (!digits || digits.length < 10 || digits.length > 15) {
+      return null;
+    }
+
+    const showKey = show._id || show.id;
+    if (!showKey) {
+      return null;
+    }
+
+    if (lastFetchedPointsRef.current === `${showKey}-${digits}` && guestPoints !== null) {
+      return guestPoints;
+    }
+
+    try {
+      setIsFetchingPoints(true);
+
+      const payload = { phoneNumber: digits };
+      if (nameValue) {
+        payload.guestName = nameValue;
+      }
+
+      const response = await api.post(`/public/shows/${id}/points`, payload);
+      const pointsValue = response?.data?.points ?? null;
+      setGuestPoints(pointsValue);
+  lastFetchedPointsRef.current = `${showKey}-${digits}`;
+      return pointsValue;
+    } catch (error) {
+      console.error('Failed to load guest points:', error);
+      toast.error(error.response?.data?.message || 'Unable to load point balance');
+      return null;
+    } finally {
+      setIsFetchingPoints(false);
+    }
+  }, [guestPoints, id, show]);
+
+  useEffect(() => {
+    if (!show || show.showType !== 'private') {
+      setGuestPoints(null);
+      lastFetchedPointsRef.current = null;
+      return;
+    }
+
+    const digits = getStoredPhoneDigits();
+    if (!digits || digits.length < 10 || digits.length > 15) {
+      setGuestPoints(null);
+      lastFetchedPointsRef.current = null;
+      return;
+    }
+
+    const storedName = getStoredGuestName();
+    fetchGuestPoints(digits, storedName);
+  }, [fetchGuestPoints, getStoredGuestName, getStoredPhoneDigits, show]);
 
   const openPriorityModal = (group) => {
     if (!group) return;
@@ -600,26 +663,36 @@ export const ShowDetail = () => {
     }
   }, [currentSongNotInList, currentSong, clearPerformerSongSelection]);
 
+  const submitRequest = async (values, phoneDigits, requesterNameValue = '', options = {}) => {
+    const { usePoints = false } = options;
+    setSubmitting(true);
+    let resultData = null;
+    const trimmedRequesterName = typeof requesterNameValue === 'string' ? requesterNameValue.trim() : '';
 
-
-  const submitRequest = async (values, phoneDigits, requesterNameValue = '') => {
     try {
-      setSubmitting(true);
-
       // Validate that exactly one song field is provided
       const hasSong = values.song && values.song.trim();
       const hasSongNotInList = values.songNotInList && values.songNotInList.trim();
 
       if (!hasSong && !hasSongNotInList) {
         toast.error('Please select or enter a song');
-        setSubmitting(false);
-        return;
+        return null;
       }
 
       if (hasSong && hasSongNotInList) {
         toast.error('Please select only one song (either from list or not in list)');
-        setSubmitting(false);
-        return;
+        return null;
+      }
+
+      const parsedTipAmount = Math.round(Number(values.tipAmount));
+      if (Number.isNaN(parsedTipAmount) || parsedTipAmount < 1) {
+        toast.error('Enter a valid amount greater than 0');
+        return null;
+      }
+
+      if (usePoints && (!phoneDigits || phoneDigits.length < 10 || phoneDigits.length > 15)) {
+        toast.error('Add a valid phone number to use points');
+        return null;
       }
 
       // Use whichever field has a value
@@ -630,29 +703,36 @@ export const ShowDetail = () => {
         songname: songname
       }];
 
-      const sanitizedName = typeof requesterNameValue === 'string' ? requesterNameValue.trim() : '';
-
       const requestData = {
         showId: id,
         songs: formattedSongs,
         dedication: values.dedication || '',
-        tipAmount: parseInt(values.tipAmount),
+        tipAmount: parsedTipAmount,
         ...(phoneDigits ? { requesterPhone: phoneDigits } : {})
       };
 
-      if (sanitizedName) {
-        requestData.requesterName = sanitizedName;
+      if (trimmedRequesterName) {
+        requestData.requesterName = trimmedRequesterName;
+      }
+
+      if (usePoints) {
+        requestData.usePoints = true;
       }
 
       const response = await api.post(`/public/song-requests`, requestData);
-      const result = response.data;
+      resultData = response.data;
 
-      // Open Venmo link
-      if (result.venmoUrl) {
-        window.open(result.venmoUrl, '_blank');
+      if (usePoints) {
+        if (typeof resultData?.pointsBalance === 'number') {
+          setGuestPoints(resultData.pointsBalance);
+        }
+        toast.success('Song request submitted with points!');
+      } else {
+        if (resultData?.venmoUrl) {
+          window.open(resultData.venmoUrl, '_blank');
+        }
+        toast.success('Song request submitted successfully!');
       }
-
-      toast.success('Song request submitted successfully!');
 
       // Reset form
       setValue('song', '');
@@ -664,9 +744,14 @@ export const ShowDetail = () => {
     } catch (error) {
       console.error('Error submitting request:', error);
       toast.error(error.response?.data?.error || error.message || 'Failed to submit song request');
+      if (usePoints && phoneDigits && phoneDigits.length >= 10 && phoneDigits.length <= 15) {
+        await fetchGuestPoints(phoneDigits, trimmedRequesterName);
+      }
     } finally {
       setSubmitting(false);
     }
+
+    return resultData;
   };
 
   const onSubmit = async (values) => {
@@ -674,6 +759,7 @@ export const ShowDetail = () => {
       const digits = normalizePhoneDigits(guestPhoneNumber || phoneInput);
       if (!validatePhone(digits)) {
         setPendingSubmitValues(values);
+        setPendingUsePoints(false);
         setPhoneDialogOpen(true);
         return;
       }
@@ -684,6 +770,32 @@ export const ShowDetail = () => {
 
     // Authenticated request: phone optional (server may still accept it)
     await submitRequest(values, null);
+  };
+
+  const handleRequestWithPoints = async () => {
+    const formValues = getValues();
+    const digits = getStoredPhoneDigits();
+
+    if (!validatePhone(digits)) {
+      setPendingSubmitValues(formValues);
+      setPendingUsePoints(true);
+      setPhoneDialogOpen(true);
+      return;
+    }
+
+    const parsedTipAmount = Math.round(Number(formValues.tipAmount));
+    if (Number.isNaN(parsedTipAmount) || parsedTipAmount < 1) {
+      toast.error('Enter a valid amount of points to spend');
+      return;
+    }
+
+    if (guestPoints !== null && parsedTipAmount > guestPoints) {
+      toast.error('You do not have enough points for this request');
+      return;
+    }
+
+    const guestNameForRequest = getStoredGuestName();
+    await submitRequest(formValues, digits, guestNameForRequest, { usePoints: true });
   };
 
   if (loading) {
@@ -701,6 +813,17 @@ export const ShowDetail = () => {
       </Alert>
     );
   }
+
+  const isPrivateShow = show?.showType === 'private';
+  const parsedTipAmount = Math.round(Number(tipAmountValue || 0)) || 0;
+  const tipInputLabel = isPrivateShow
+    ? (guestPoints !== null
+      ? `Points (you have ${guestPoints} ${guestPoints === 1 ? 'point' : 'points'})`
+      : (isFetchingPoints
+        ? 'Points (checking balance...)'
+        : 'Points (enter phone to load points)'))
+    : 'Amount';
+  const hasInsufficientPoints = isPrivateShow && guestPoints !== null && parsedTipAmount > guestPoints;
 
   return (
     <>
@@ -866,10 +989,15 @@ export const ShowDetail = () => {
                     <Col size={12}>
                       <Input
                         name="tipAmount"
-                        label="Amount"
+                        label={tipInputLabel}
                         type="number"
                         size={12}
                       />
+                      {hasInsufficientPoints && (
+                        <Typography variant="caption" color="error.main" sx={{ mt: 0.5, display: 'block' }}>
+                          Not enough points. You have {guestPoints}.
+                        </Typography>
+                      )}
                     </Col>
                   </Row>
                   <Row>
@@ -882,6 +1010,32 @@ export const ShowDetail = () => {
                       />
                     </Col>
                   </Row>
+                  {isPrivateShow && (
+                    <Row>
+                      <Col size={12}>
+                        <Button
+                          type="button"
+                          variant="contained"
+                          color="success"
+                          fullWidth
+                          size="large"
+                          disabled={submitting || isFetchingPoints || hasInsufficientPoints}
+                          onClick={handleRequestWithPoints}
+                          sx={{
+                            mb: 2,
+                            borderRadius: '999px',
+                            fontWeight: 700,
+                            letterSpacing: '0.05em',
+                            textTransform: 'uppercase',
+                            py: 1.5,
+                            px: 2
+                          }}
+                        >
+                          {submitting ? 'Submitting...' : 'Request Song With Points'}
+                        </Button>
+                      </Col>
+                    </Row>
+                  )}
                   <Row>
                     <Col size={12}>
                       <Button
@@ -1130,12 +1284,17 @@ export const ShowDetail = () => {
               const trimmedName = guestNameInput.trim();
               setGuestPhoneNumber(digits, trimmedName);
               setGuestNameInput(trimmedName);
+              if (show?.showType === 'private') {
+                await fetchGuestPoints(digits, trimmedName);
+              }
               setPhoneDialogOpen(false);
 
               if (pendingSubmitValues) {
                 const values = pendingSubmitValues;
                 setPendingSubmitValues(null);
-                await submitRequest(values, digits, trimmedName);
+                const usePoints = pendingUsePoints;
+                setPendingUsePoints(false);
+                await submitRequest(values, digits, trimmedName, { usePoints });
               }
             }}
             disabled={submitting}

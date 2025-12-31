@@ -21,6 +21,7 @@ import usersRoutes from './routes/users.js';
 import songsRoutes from './routes/songs.js';
 import songRequestsRoutes from './routes/song-requests.js';
 import spotifyRoutes from './routes/spotify.js';
+import publicUsersRoutes from './routes/public-users.js';
 import { errorHandler } from './middleware/errorHandler.js';
 import { User } from './models/User.js';
 
@@ -80,6 +81,7 @@ publicRouter.use('/options', optionsRoutes.routes());
 publicRouter.use('/songs', songsRoutes.routes());
 publicRouter.use('/song-requests', songRequestsRoutes.routes());
 publicRouter.use('/spotify', spotifyRoutes.routes());
+publicRouter.use('/users', publicUsersRoutes.routes());
 
 // Mount all API routes
 app.use(apiRouter.routes());

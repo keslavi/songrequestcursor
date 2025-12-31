@@ -180,7 +180,7 @@ requestSchema.methods.toPublic = function() {
     performerNotes: this.performerNotes,
     completedAt: this.completedAt,
     songsDisplayText: this.getSongsDisplayText(),
-    venmoUrl: this.getVenmoUrl(),
+  venmoUrl: this.getVenmoUrl(),
   requesterName: this.requesterName || '',
     createdAt: this.createdAt,
     updatedAt: this.updatedAt

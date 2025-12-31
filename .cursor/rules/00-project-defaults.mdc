@@ -21,6 +21,8 @@ These rules apply to every new Cursor agent/session in this repo.
 - Client: functional components + hooks; avoid unnecessary abstractions.
 - Server: ES modules and Koa middleware style.
 - Don’t add secrets; use `.env`.
+- for naming, favor a nounVerb pattern.  taskRetrieve rather than getTask
+- for html events, favor on rather than handle: example: onClick
 
 ## Quality bar
 - After substantive edits, run relevant lint/tests when feasible.

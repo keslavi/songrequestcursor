@@ -1,5 +1,6 @@
 import Router from '@koa/router';
 import { Show } from '../models/Show.js';
+import { ShowGuest, PRIVATE_SHOW_JOIN_POINTS } from '../models/ShowGuest.js';
 
 const router = new Router({ prefix: '/api/public/shows' });
 
@@ -97,6 +98,71 @@ router.get('/debug/all', async (ctx) => {
   }
 });
 
+// Register or fetch points balance for a guest joining a private show
+router.post('/:id/points', async (ctx) => {
+  try {
+    const show = await Show.findById(ctx.params.id);
+    if (!show) {
+      ctx.throw(404, 'Show not found');
+    }
+
+    if (show.showType !== 'private') {
+      ctx.throw(400, 'Points are only available for private shows');
+    }
+
+    const { phoneNumber, guestName } = ctx.request.body || {};
+    const digits = ShowGuest.normalizePhone(phoneNumber);
+
+    if (!digits || digits.length < 10 || digits.length > 15) {
+      ctx.throw(400, 'Valid phone number is required');
+    }
+
+    await ShowGuest.normalizeLegacyGuestName({ show: show._id, phoneNumber: digits });
+
+    const sanitizedName = typeof guestName === 'string'
+      ? guestName.trim().slice(0, 120)
+      : '';
+
+    const setOps = {};
+    if (sanitizedName) {
+      setOps.guestName = sanitizedName;
+    }
+
+    const update = {
+      $setOnInsert: {
+        show: show._id,
+        phoneNumber: digits,
+        points: PRIVATE_SHOW_JOIN_POINTS
+      }
+    };
+
+    if (Object.keys(setOps).length) {
+      update.$set = setOps;
+    } else {
+      update.$setOnInsert.guestName = '';
+    }
+
+    const guestRecord = await ShowGuest.findOneAndUpdate(
+      { show: show._id, phoneNumber: digits },
+      update,
+      {
+        upsert: true,
+        new: true,
+        setDefaultsOnInsert: true
+      }
+    );
+
+    ctx.body = {
+      points: guestRecord.points,
+      guestName: guestRecord.guestName
+    };
+  } catch (error) {
+    console.error('Error fetching guest points:', error);
+    ctx.status = error.status || 500;
+    ctx.body = { message: error.message || 'Failed to retrieve points' };
+  }
+});
+
 // Get public show by ID
 router.get('/:id', async (ctx) => {
   try {
@@ -116,6 +182,7 @@ router.get('/:id', async (ctx) => {
       dateTo: show.dateTo,
       description: show.description,
       status: show.status,
+      showType: show.showType,
       venue: show.venue,
       performer: show.performer,
       additionalPerformers: show.additionalPerformers,

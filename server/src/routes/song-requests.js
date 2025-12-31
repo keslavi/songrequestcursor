@@ -4,6 +4,7 @@ import { Request } from '../models/Request.js';
 import { Show } from '../models/Show.js';
 import { Song } from '../models/Song.js';
 import { User } from '../models/User.js';
+import { ShowGuest, PRIVATE_SHOW_JOIN_POINTS } from '../models/ShowGuest.js';
 
 const sseClients = new Map();
 
@@ -141,7 +142,17 @@ const router = new Router();
 // Create a new song request (public endpoint - no authentication required)
 router.post('/', async (ctx) => {
   try {
-    const { showId, songs, dedication, tipAmount, requesterPhone, requesterName } = ctx.request.body;
+    const {
+      showId,
+      songs,
+      dedication,
+      tipAmount,
+      requesterPhone,
+      requesterName,
+      usePoints = false
+    } = ctx.request.body;
+
+    const isPointsRequest = Boolean(usePoints);
 
     // Validate show exists and is accepting requests
     const show = await Show.findById(showId);
@@ -154,6 +165,12 @@ router.post('/', async (ctx) => {
     if (!show.isAcceptingRequests()) {
       ctx.status = 400;
       ctx.body = { error: 'Show is not accepting requests' };
+      return;
+    }
+
+    if (isPointsRequest && show.showType !== 'private') {
+      ctx.status = 400;
+      ctx.body = { error: 'Points can only be used for private shows' };
       return;
     }
 
@@ -172,7 +189,7 @@ router.post('/', async (ctx) => {
     }
 
     // Require phone for anonymous/public requests (used for tracking)
-    const phoneDigits = String(requesterPhone || '').replace(/[^\d]/g, '');
+    const phoneDigits = ShowGuest.normalizePhone(requesterPhone);
     if (!phoneDigits || phoneDigits.length < 10 || phoneDigits.length > 15) {
       ctx.status = 400;
       ctx.body = { error: 'Valid phone number is required to submit a request' };
@@ -249,6 +266,64 @@ router.post('/', async (ctx) => {
       ? requesterName.trim().slice(0, 120)
       : '';
 
+    const roundedTipAmount = Math.round(tipAmount);
+
+    let updatedGuest = null;
+
+    if (isPointsRequest) {
+      await ShowGuest.normalizeLegacyGuestName({ show: show._id, phoneNumber: phoneDigits });
+      const setOps = {};
+      if (sanitizedName) {
+        setOps.guestName = sanitizedName;
+      }
+
+      const update = {
+        $setOnInsert: {
+          show: show._id,
+          phoneNumber: phoneDigits,
+          points: PRIVATE_SHOW_JOIN_POINTS
+        }
+      };
+
+      if (Object.keys(setOps).length) {
+        update.$set = setOps;
+      } else {
+        update.$setOnInsert.guestName = '';
+      }
+
+      const guestRecord = await ShowGuest.findOneAndUpdate(
+        { show: show._id, phoneNumber: phoneDigits },
+        update,
+        {
+          upsert: true,
+          new: true,
+          setDefaultsOnInsert: true
+        }
+      );
+
+      const deductedGuest = await ShowGuest.findOneAndUpdate(
+        {
+          _id: guestRecord._id,
+          points: { $gte: roundedTipAmount }
+        },
+        {
+          $inc: { points: -roundedTipAmount },
+          ...(sanitizedName ? { $set: { guestName: sanitizedName } } : {})
+        },
+        {
+          new: true
+        }
+      );
+
+      if (!deductedGuest) {
+        ctx.status = 400;
+        ctx.body = { error: 'Not enough points available' };
+        return;
+      }
+
+      updatedGuest = deductedGuest;
+    }
+
     const request = new Request({
       show: showId,
       user: existingUser ? existingUser._id : null,
@@ -256,7 +331,7 @@ router.post('/', async (ctx) => {
       requesterName: sanitizedName,
       songs: processedSongs,
       dedication: dedication || '',
-      tipAmount: tipAmount,
+      tipAmount: roundedTipAmount,
       status: 'pending'
     });
 
@@ -269,8 +344,16 @@ router.post('/', async (ctx) => {
       { new: true }
     );
 
+    const responsePayload = request.toPublic();
+
+    if (updatedGuest) {
+      delete responsePayload.venmoUrl;
+      responsePayload.pointsBalance = updatedGuest.points;
+      responsePayload.usedPoints = true;
+    }
+
     ctx.status = 201;
-    ctx.body = request.toPublic();
+    ctx.body = responsePayload;
 
     await broadcastRequests(showId);
   } catch (error) {

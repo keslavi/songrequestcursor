@@ -539,6 +539,7 @@ const GoogleMaps = ({ shows = [], center = { lat: 40.7128, lng: -74.0060 }, zoom
         </Box>
       )}
       
+      {/* Temporarily hide custom React overlay card while retaining Google info window logic.
       {selectedShow && (
         <Card 
           sx={{ 
@@ -628,6 +629,7 @@ const GoogleMaps = ({ shows = [], center = { lat: 40.7128, lng: -74.0060 }, zoom
           </CardContent>
         </Card>
       )}
+      */}
     </Box>
   );
 };
